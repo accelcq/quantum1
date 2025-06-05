@@ -1,0 +1,35 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode settings
+.vscode/
+
+# Node.js dependencies in frontend
+frontend/node_modules/
+frontend/package-lock.json
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.env.local
+.secrets
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+
+# MyPy
+.mypy_cache/

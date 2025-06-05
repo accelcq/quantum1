@@ -1,0 +1,22 @@
+# deploy from project local directory to IBM Cloud code engine deployment from deploy.sh
+
+# contents: deploy.yaml
+apiVersion: codeengine.cloud.ibm.com/v1
+kind: Application
+metadata:
+  name: quantum1
+spec:
+  image: us.icr.io/accelcq/quantum1:latest
+  scale:
+    maxScale: 1
+  template:
+    containers:
+    - name: quantum1
+      image: us.icr.io/accelcq/quantum1:latest
+      env:
+        - name: IBM_QUANTUM_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBM_QUANTUM_API_TOKEN
+  port: 8080
