@@ -88,14 +88,17 @@ Install via Extensions panel:
 ```
 quantum1/
 ├── .github/workflows/deploy.yml       # CI/CD workflow
-├── .vscode/tasks.json                 # VS Code local task runner
-├── app/main.py                        # FastAPI + Qiskit API
-├── Dockerfile                         # Container build spec
-├── deploy.sh                          # CLI automation script
-├── deploy.yaml                        # Code Engine config
-├── requirements.txt                   # Qiskit + FastAPI
+├── .vscode/tasks.json                 # VS Code task to deploy locally
+├── app/main.py                        # FastAPI + Qiskit API with JWT, quantum backend access, logging
+├── frontend/src/App.js                # React frontend with login, token storage, API integration
+├── frontend/package.json              # React config for axios, react-scripts, etc.
+├── Dockerfile                         # Multi-stage build for FastAPI + React
+├── deploy.sh                          # CLI automation script for IBM Code Engine
+├── deploy.yaml                        # YAML config to deploy as a Code Engine app
+├── requirements.txt                   # Python deps: Qiskit, FastAPI, auth, etc.
 ├── .env.local                         # Secrets (ignored by git)
 ├── .gitignore                         # Excludes venv, .env, etc.
+├── README.md                          # Project documentation
 ```
 
 ---
@@ -109,8 +112,11 @@ qiskit-ibm-runtime>=0.23.0
 qiskit-machine-learning>=0.7.0
 numpy>=1.21.0
 fastapi>=0.70.0
-uvicorn>=0.17.0
+uvicorn[standard]>=0.17.0
 python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+pydantic>=1.8.0
 ```
 
 ---
@@ -118,15 +124,7 @@ python-dotenv
 ## 🐳 Docker Setup
 
 ### `Dockerfile`
-
-```Dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
-```
+(See in repo with inline comments)
 
 ### `.vscode/tasks.json`
 
@@ -135,21 +133,16 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Build Docker Image",
+      "label": "Deploy Qiskit API to IBM Code Engine",
       "type": "shell",
-      "command": "docker build -t us.icr.io/accelcq/quantum1:latest .",
-      "problemMatcher": []
-    },
-    {
-      "label": "Push Docker Image",
-      "type": "shell",
-      "command": "docker push us.icr.io/accelcq/quantum1:latest",
-      "problemMatcher": []
-    },
-    {
-      "label": "Run All Locally",
-      "dependsOn": ["Build Docker Image", "Push Docker Image"],
-      "dependsOrder": "sequence",
+      "command": "./deploy.sh",
+      "options": {
+        "envFile": "${workspaceFolder}/env.local"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
       "problemMatcher": []
     }
   ]
@@ -169,124 +162,68 @@ IBM_QUANTUM_API_TOKEN="<Paste your Quantum Token>"
 
 ---
 
-## 🔑 GitHub Secrets (for deploy.yml)
+## 🚀 Deploy
 
-In GitHub → Settings → Secrets and Variables → Actions:
+### 🗂️ Push Local Project to GitHub
 
-* `IBM_CLOUD_API_KEY`
-* `IBM_CLOUD_REGION`
-* `IBM_QUANTUM_API_TOKEN`
-
----
-
-## 🚀 GitHub Actions Deployment
-
-### `.github/workflows/deploy.yml`
-
-```yaml
-name: Deploy to IBM Code Engine
-on:
-  push:
-    branches: [main]
-env:
-  IMAGE_NAME: us.icr.io/accelcq/quantum1
-  IBM_CLOUD_REGION: us-south
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Install IBM Cloud CLI
-        run: curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
-      - name: IBM Cloud Login
-        run: |
-          ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r ${{ env.IBM_CLOUD_REGION }}
-          ibmcloud cr login
-      - name: Build & Push
-        run: |
-          docker build -t $IMAGE_NAME:latest .
-          docker push $IMAGE_NAME:latest
-      - name: Deploy to Code Engine
-        run: |
-          ibmcloud ce project select --name quantum1-project
-          ibmcloud ce application apply --file deploy.yaml
+```bash
+cd C:\Users\RanjanKumar\Projects\Qiskit\qiskit_100_py311
+git init
+git remote add origin https://github.com/<yourgithubreponame>/quantum1.git
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git push -u origin main
 ```
 
----
+### ☁️ IBM Cloud Code Engine Deployment
 
-## 🧪 Troubleshooting & Migration Notes
-
-* Use `https://qisk.it/1-0-constraints` for dependency constraints
-* Avoid legacy `qiskit-terra`
-* Use `qiskit >=1.0.0` in a fresh virtual environment
-
----
-# Quantum1: FastAPI + Qiskit API on IBM Cloud
-
-This project provides a full-stack template to build, containerize, and deploy a Qiskit-based API using FastAPI, Docker, and IBM Cloud Code Engine.
-
-...
-
-## 🧪 How to Run and Test
-
-### ▶️ Run Locally (in VS Code)
-
-1. Activate your virtual environment:
-
-   ```bash
-   C:\Users\<UserName>\Envs\Qiskit\qiskit_100_py311\Scripts\activate
-   ```
-
-   ⏱ Time: \~3 sec
-
-2. Install Python dependencies:
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-   ⏱ Time: \~3 min
-
-3. Run the FastAPI server:
-
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-   ⏱ Time: <10 sec (startup)
-
-4. Open in browser:
-
-   * [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-   * [http://127.0.0.1:8000](http://127.0.0.1:8000)
-
-Expected response:
-
-```json
-{"backend": "ibmq_qasm_simulator"}
+```bash
+./deploy.sh
 ```
 
-> 🧪 Tip: Ensure your `.env.local` file has a valid `IBM_QUANTUM_API_TOKEN` for remote backend execution.
-
-### ☁️ Run on IBM Cloud (Code Engine)
-
-1. Trigger GitHub Action or run `./deploy.sh`
-2. Once deployed, run:
-
-   ```bash
-   ibmcloud ce application get --name quantum1 --output url
-   ```
-3. Open the app URL in your browser
-
-   * Example: `https://quantum1.<hash>.us-south.codeengine.appdomain.cloud`
-   * Navigate to `/docs` to test via Swagger
-
-> ✅ Ensure `quantum1-secrets` is created and injected using Code Engine secret environment variable.
+This will:
+- Login to IBM Cloud
+- Create Code Engine project if not exists
+- Create secret `quantum1-secrets`
+- Build + push image to IBM Container Registry
+- Apply app deployment
 
 ---
 
-## ⏱ Time Estimates
+## 🧪 Run and Test
+
+### ▶️ Local FastAPI Test
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+- Access Swagger: http://localhost:8000/docs
+- Use `/token` to authenticate with username/password
+- Test protected `/run-circuit` and `/logs` endpoints with JWT
+
+### ▶️ Local React Frontend Test
+
+```bash
+cd frontend
+npm install
+npm start
+```
+- Open: http://localhost:3000
+- Login using: `accelcq` / `password123`
+- Run circuit and fetch logs securely
+
+### ☁️ Cloud Test
+
+```bash
+ibmcloud ce application get --name quantum1 --output url
+```
+- Open deployed URL and test `/docs` or React UI if bundled
+- Verify login, execution, and JWT-secured circuit results
+
+---
+
+## ⏱️ Time Estimates
 
 | Step                                            | Time Taken |
 | ----------------------------------------------- | ---------- |
@@ -297,10 +234,11 @@ Expected response:
 | VS Code interpreter config                      | 1 min      |
 | `pip install -r requirements.txt`               | 3 min      |
 | Local run test (`uvicorn`, `/docs`)             | <1 min     |
+| React setup (`npm install`, `npm start`)        | 3 min      |
 | Docker build + push                             | 2–3 min    |
 | Deploy to Code Engine                           | 2–3 min    |
-| GitHub Action full CI/CD                        | \~4–5 min  |
+| GitHub Action full CI/CD (if used)              | 4–5 min    |
 
 ---
 
-For questions or issues, consult Qiskit Slack or raise a GitHub Issue.
+For issues or help, open an issue on GitHub or join Qiskit Slack.
