@@ -104,6 +104,12 @@ if [ "$SUBNET_VPC_ID" != "$VPC_ID" ] || [ "$SUBNET_ZONE" != "$ZONE" ]; then
     exit 1
   fi
   log "Recreating subnet $SUBNET_NAME with correct VPC and zone..."
+  # Refresh VPC_ID in case it was incorrect before
+  VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | jq -r '.id')
+  if [ -z "$VPC_ID" ]; then
+    log "ERROR: Could not retrieve VPC ID for $VPC_NAME before recreating subnet"
+    exit 1
+  fi
   if ! ibmcloud is subnet-create "$SUBNET_NAME" --vpc "$VPC_ID" --ipv4-address-count 256 --zone "$ZONE"; then
     log "ERROR: Failed to recreate subnet $SUBNET_NAME"
     exit 1
