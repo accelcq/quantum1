@@ -65,8 +65,14 @@ fi
 
 if ! ibmcloud is subnet "$SUBNET_NAME" >/dev/null 2>&1; then
   log "Creating subnet: $SUBNET_NAME"
-  # Correct argument order: SUBNET_NAME VPC --ipv4-address-count 256 --zone ZONE
-  if ! ibmcloud is subnet-create "$SUBNET_NAME" "$VPC_NAME" --ipv4-address-count 256 --zone "$ZONE"; then
+  # Get VPC ID for subnet creation
+  VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | grep -o '"id": *"[^"]*"' | head -n1 | cut -d'"' -f4)
+  if [ -z "$VPC_ID" ]; then
+    log "ERROR: Could not retrieve VPC ID for $VPC_NAME"
+    exit 1
+  fi
+  # Create subnet in the correct VPC and zone
+  if ! ibmcloud is subnet-create "$SUBNET_NAME" --vpc "$VPC_ID" --ipv4-address-count 256 --zone "$ZONE"; then
     log "ERROR: Failed to create subnet $SUBNET_NAME"
     exit 1
   fi
