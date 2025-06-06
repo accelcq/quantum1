@@ -76,7 +76,7 @@ fi
 
 if ! ibmcloud is public-gateway "$GATEWAY_NAME" >/dev/null 2>&1; then
   log "Creating public gateway: $GATEWAY_NAME"
-  if ! ibmcloud is public-gateway-create "$ZONE" "$VPC_NAME" --name "$GATEWAY_NAME"; then
+  if ! ibmcloud is public-gateway-create "$GATEWAY_NAME" "$VPC_NAME" "$ZONE"; then
     log "ERROR: Failed to create public gateway $GATEWAY_NAME"
     exit 1
   fi
