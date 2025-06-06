@@ -9,7 +9,6 @@ from datetime import datetime, timezone
 
 # Qiskit 1.0.0 imports for quantum stock prediction
 from qiskit import QuantumCircuit # type: ignore
-from qiskit import execute  # type: ignore
 from qiskit_aer import Aer  # type: ignore
 
 # Set up logging to a file (simulate IBM Cloud Object Storage)
@@ -96,7 +95,7 @@ def predict_stock(current_user: dict[str, Any] = Depends(get_current_user)):
     qc.h(0)  # Superposition: simulates uncertainty in stock movement
     qc.measure(0, 0)
     backend = Aer.get_backend('qasm_simulator')  # type: ignore
-    job = execute(qc, backend, shots=100)
+    job = backend.run(qc, shots=100)
     result = job.result()
     counts = result.get_counts(qc)
     log_step("Execution", f"Quantum circuit executed, counts: {counts}")

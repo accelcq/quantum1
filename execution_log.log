@@ -1,0 +1,44 @@
+2025-06-06 11:03:10,960 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 11:03:10,960 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 11:03:11,183 Form data requires "python-multipart" to be installed. 
+You can install "python-multipart" with: 
+
+pip install python-multipart
+
+2025-06-06 11:03:11,183 Form data requires "python-multipart" to be installed. 
+You can install "python-multipart" with: 
+
+pip install python-multipart
+
+2025-06-06 11:28:29,544 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 11:28:29,547 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 11:28:29,788 Form data requires "python-multipart" to be installed. 
+You can install "python-multipart" with: 
+
+pip install python-multipart
+
+2025-06-06 11:28:29,790 Form data requires "python-multipart" to be installed. 
+You can install "python-multipart" with: 
+
+pip install python-multipart
+
