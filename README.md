@@ -8,8 +8,14 @@ This project provides a full-stack template to build, containerize, and deploy a
 ## 🚀 Project Objective
 
 Build a Python FastAPI application that executes quantum circuits via Qiskit SDK, dockerize the application, and deploy it seamlessly on IBM Cloud Code Engine using GitHub Actions and CLI automation.
+## 🖥️ Development Environment Overview
 
+![Development Environment for IBM Qiskit](./docs/Development%20Environment%20for%20IBM%20Qiskit.png)
 ---
+## 🖼️ Deployment Architecture
+
+![AccelCQ Quantum1 Deployment Architecture](./docs/AccelCQ_quantum1_Deployment_Architecture.png)
+----
 
 ## 🧰 Prerequisites
 
@@ -178,6 +184,9 @@ git push -u origin main
 ### 📄 More Deployment Options
 
 For additional deployment strategies and a comparison to help you choose the best approach, see [DeploymentOptions.md](./DeploymentOptions.md).
+## 🏗️ Deployment Architecture Options
+
+![Deployment Architecture Options - IBM Cloud-Quantum](./Deployment%20Architecture%20Options%20-%20IBM%20Cloud-Quantum.png)
 ### ☁️ IBM Cloud Code Engine Deployment
 
 ```bash
@@ -192,7 +201,20 @@ This will:
 - Apply app deployment
 
 ---
+## 🏢 Kubernetes & Compute VM Deployment Options
 
+For advanced deployment scenarios, including Kubernetes clusters (IBM Cloud Kubernetes Service, OpenShift) and Compute VM (IBM Virtual Server), see [Quantum_K8S_And_ComputeVM_options.md](./Quantum_K8S_And_ComputeVM_options.md).
+
+This document covers:
+
+- Helm chart setup for Qiskit API
+- IBM Cloud Kubernetes Service (IKS) deployment steps
+- OpenShift deployment notes
+- VM provisioning and Docker Compose
+- Security, scaling, and cost considerations
+
+Refer to it if you need more control, custom networking, or hybrid/multi-cloud quantum workloads.
+---
 ## 🧪 Run and Test
 
 ### ▶️ Local FastAPI Test
@@ -225,7 +247,7 @@ ibmcloud ce application get --name quantum1 --output url
 
 ---
 
-## ⏱️ Time Estimates
+## ⏱️ Approximate Time Estimates
 
 | Step                                            | Time Taken |
 | ----------------------------------------------- | ---------- |
