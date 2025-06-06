@@ -48,3 +48,46 @@ Traceback (most recent call last):
     version = _bcrypt.__about__.__version__
               ^^^^^^^^^^^^^^^^^
 AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 11:49:10,174 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 11:49:10,174 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 13:29:21,197 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 13:56:31,828 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 14:00:45,216 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 14:01:27,046 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-06-06 14:02:05,516 User: Prediction requested by user: accelcq
+2025-06-06 14:02:05,549 Logs: Retrieved 68 log entries
+2025-06-06 14:02:05,549 Logs: Returning log entries
+2025-06-06 14:02:11,292 User: Prediction requested by user: accelcq
+2025-06-06 14:02:11,292 Quantum Circuit: Creating quantum circuit for stock prediction
+2025-06-06 14:02:11,338 Execution: Quantum circuit executed, counts: {'1': 52, '0': 48}
+2025-06-06 14:02:11,339 Prediction: Predicted stock movement: up

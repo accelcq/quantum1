@@ -21,8 +21,19 @@ def log_step(step: str, detail: str):
 # FastAPI app to expose logs via Swagger UI
 app = FastAPI()
 
-# JWT Config
-SECRET_KEY = "your-secret-key"  # Replace with a secure key in production!
+# Add CORS middleware
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or use ["http://localhost:3000", "http://172.26.48.1:3000"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# JWT Config, Generate a secure key for production use "python -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY = "jS0Oq4ejgkDHTS4LVL5qM1uXDBIelvrbAuUrPsB-ZPw"  # Replace with a secure key in production!
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 

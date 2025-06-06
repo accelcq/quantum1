@@ -16,8 +16,9 @@ function App() {
       const res = await axios.post(`${API_URL}/token`, new URLSearchParams({
         username, password
       }));
+      console.log("Login response:", res.data); // Add this line
       setToken(res.data.access_token);
-    } catch {
+    } catch (err) {
       alert("Login failed");
     }
   };
@@ -33,9 +34,9 @@ function App() {
     }
   };
 
-  const runCircuit = async () => {
+  const predictStock = async () => {
     try {
-      const res = await axios.post(`${API_URL}/run-circuit`, {}, {
+      const res = await axios.post(`${API_URL}/predict-stock`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResult(res.data.result);
@@ -57,7 +58,7 @@ function App() {
       ) : (
         <>
           <button onClick={fetchLogs}>Fetch Logs</button>
-          <button onClick={runCircuit}>Run Circuit</button>
+          <button onClick={predictStock}>Predict Stock</button>
           <button onClick={() => setToken("")}>Logout</button>
           <h3>Logs</h3>
           <ul>
@@ -68,7 +69,7 @@ function App() {
           {result && (
             <div>
               <h3>Result</h3>
-              <pre>{result}</pre>
+              <pre>{JSON.stringify(result, null, 2)}</pre>
             </div>
           )}
         </>
