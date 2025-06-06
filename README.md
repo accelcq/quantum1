@@ -175,7 +175,9 @@ git commit -m "Initial commit"
 git branch -M main
 git push -u origin main
 ```
+### 📄 More Deployment Options
 
+For additional deployment strategies and a comparison to help you choose the best approach, see [DeploymentOptions.md](./DeploymentOptions.md).
 ### ☁️ IBM Cloud Code Engine Deployment
 
 ```bash
@@ -241,4 +243,4 @@ ibmcloud ce application get --name quantum1 --output url
 
 ---
 
-For issues or help, open an issue on GitHub or join Qiskit Slack.
+For issues or help, open an issue on GitHub or join Qiskit Slack or Contact ranjan@accelcq.com for more information.
