@@ -39,9 +39,10 @@ function App() {
       const res = await axios.post(`${API_URL}/predict-stock`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setResult(res.data.result);
+      setResult(res.data);
     } catch {
-      alert("Failed to run circuit");
+      alert("Failed to run predict-stock API");
+      setResult(null);
     }
   };
 

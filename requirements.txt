@@ -24,3 +24,5 @@ matplotlib>=3.4.0
 seaborn>=0.11.0
 typing-extensions>=3.10.0
 types-qiskit>=1.0.0
+python-multipart 
+bcrypt
