@@ -71,9 +71,9 @@ fi
 
 if ! ibmcloud is subnet "$SUBNET_NAME" >/dev/null 2>&1; then
   log "Creating subnet: $SUBNET_NAME"
-  # Get VPC ID for subnet creation
-  VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | grep -o '"id": *"[^"]*"' | head -n1 | cut -d'"' -f4)
-  if [ -z "$VPC_ID" ]; then
+  # Get VPC ID for subnet creation using jq for reliability
+  VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | jq -r '.id')
+  if [ -z "$VPC_ID" ] || [ "$VPC_ID" == "null" ]; then
     log "ERROR: Could not retrieve VPC ID for $VPC_NAME"
     exit 1
   fi
