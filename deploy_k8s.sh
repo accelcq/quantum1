@@ -97,9 +97,23 @@ if [ -z "$SUBNET_ID" ] || [ -z "$SUBNET_ZONE" ] || [ -z "$SUBNET_VPC_ID" ]; then
 fi
 log "Subnet $SUBNET_NAME details: ID=$SUBNET_ID, Zone=$SUBNET_ZONE, VPC ID=$SUBNET_VPC_ID"
 if [ "$SUBNET_VPC_ID" != "$VPC_ID" ] || [ "$SUBNET_ZONE" != "$ZONE" ]; then
-  log "ERROR: Subnet $SUBNET_NAME is not correctly associated with VPC $VPC_NAME and zone $ZONE."
-  log "Please manually delete and recreate the subnet with correct association."
-  exit 1
+  log "WARNING: Subnet $SUBNET_NAME is not correctly associated with VPC $VPC_NAME and zone $ZONE."
+  log "Deleting incorrect subnet $SUBNET_NAME..."
+  if ! ibmcloud is subnet-delete "$SUBNET_NAME" -f; then
+    log "ERROR: Failed to delete subnet $SUBNET_NAME. Please delete it manually."
+    exit 1
+  fi
+  log "Recreating subnet $SUBNET_NAME with correct VPC and zone..."
+  if ! ibmcloud is subnet-create "$SUBNET_NAME" --vpc "$VPC_ID" --ipv4-address-count 256 --zone "$ZONE"; then
+    log "ERROR: Failed to recreate subnet $SUBNET_NAME"
+    exit 1
+  fi
+  # Refresh subnet info after recreation
+  SUBNET_INFO=$(ibmcloud is subnet "$SUBNET_NAME" --output json)
+  SUBNET_ID=$(echo "$SUBNET_INFO" | jq -r '.id')
+  SUBNET_ZONE=$(echo "$SUBNET_INFO" | jq -r '.zone.name')
+  SUBNET_VPC_ID=$(echo "$SUBNET_INFO" | jq -r '.vpc.id')
+  log "Subnet $SUBNET_NAME recreated: ID=$SUBNET_ID, Zone=$SUBNET_ZONE, VPC ID=$SUBNET_VPC_ID"
 fi
 
 # Ensure public gateway exists and is attached to the subnet
