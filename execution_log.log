@@ -42,3 +42,9 @@ You can install "python-multipart" with:
 
 pip install python-multipart
 
+2025-06-06 11:31:17,456 (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Lib\site-packages\passlib\handlers\bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
