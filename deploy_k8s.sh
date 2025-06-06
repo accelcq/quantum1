@@ -102,13 +102,20 @@ fi
 # Kubernetes cluster setup
 if ! ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" >/dev/null 2>&1; then
   log "Creating Kubernetes cluster: $K8S_CLUSTER_NAME"
+  # Get VPC and Subnet IDs
+  VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | grep -o '"id": *"[^"]*"' | head -n1 | cut -d'"' -f4)
+  SUBNET_ID=$(ibmcloud is subnet "$SUBNET_NAME" --output json | grep -o '"id": *"[^"]*"' | head -n1 | cut -d'"' -f4)
+  if [ -z "$VPC_ID" ] || [ -z "$SUBNET_ID" ]; then
+    log "ERROR: Could not retrieve VPC or Subnet ID."
+    exit 1
+  fi
   ibmcloud ks cluster create vpc-gen2 \
     --name "$K8S_CLUSTER_NAME" \
-    --vpc "$VPC_NAME" \
+    --vpc-id "$VPC_ID" \
     --zone "$ZONE" \
     --flavor bx2.4x16 \
     --workers 2 \
-    --subnet "$SUBNET_NAME"
+    --subnet-id "$SUBNET_ID"
 else
   log "Kubernetes cluster $K8S_CLUSTER_NAME already exists."
 fi
