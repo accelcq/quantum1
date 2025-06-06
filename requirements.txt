@@ -1,28 +1,29 @@
-qiskit==1.0.0
-qiskit-ibm-provider>=0.7.0
-qiskit-ibm-runtime>=0.23.0
-qiskit-machine-learning>=0.7.0
-numpy>=1.21.0
-fastapi>=0.70.0
-uvicorn>=0.17.0
-pydantic>=1.8.0
-python-jose
-passlib[bcrypt]
+qiskit==1.0.0 # Core Qiskit library # For quantum computing
+qiskit-ibm-provider>=0.7.0 # For accessing IBM Quantum devices
+qiskit-ibm-runtime>=0.23.0 # For accessing IBM Quantum services
+qiskit-machine-learning>=0.7.0 # For machine learning applications
+numpy>=1.21.0 # For numerical operations
+fastapi>=0.70.0 # For building APIs
+uvicorn>=0.17.0 # ASGI server for FastAPI
+pydantic>=1.8.0 # For data validation and settings management
+python-jose >=3.3.0 # For JWT handling
+passlib[bcrypt] # For password hashing
 # Additional dependencies for testing and development
-pytest>=6.2.0
+pytest>=6.2.0 # For running tests
 pytest-asyncio>=0.15.1
-httpx>=0.18.0
+httpx>=0.18.0 # For making HTTP requests in tests
 # Optional dependencies for advanced features
 qiskit-aer==0.13.3
 # Optional dependencies for specific use cases
-qiskit-nature>=0.3.0
-qiskit-finance>=0.3.0
-qiskit-optimization>=0.3.0
+qiskit-nature>=0.3.0 # For quantum chemistry applications
+qiskit-finance>=0.3.0 # For financial applications
+qiskit-optimization>=0.3.0 # For optimization problems
 # Optional dependencies for quantum chemistry
-# Visualization libraries (optional)
-matplotlib>=3.4.0
-seaborn>=0.11.0
-typing-extensions>=3.10.0
-types-qiskit>=1.0.0
-python-multipart 
-bcrypt
+# Visualization libraries (optional) 
+matplotlib>=3.4.0 # For plotting
+seaborn>=0.11.0 # For data visualization
+typing-extensions>=3.10.0 # For type hinting support
+types-qiskit>=1.0.0 # Type stubs for Qiskit
+python-multipart # For handling file uploads
+bcrypt # For password hashing
+jq # For JSON processing

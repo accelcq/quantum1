@@ -31,6 +31,12 @@ ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION"
 log "Targeting resource group: $IBM_CLOUD_RESOURCE_GROUP"
 ibmcloud target -g "$IBM_CLOUD_RESOURCE_GROUP"
 
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+  log "ERROR: 'jq' is required for JSON parsing but not found. Please install jq."
+  exit 1
+fi
+
 # Ensure VPC and Subnet setup
 log "VPC_NAME: ${VPC_NAME:-not set}"
 log "SUBNET_NAME: ${SUBNET_NAME:-not set}"
