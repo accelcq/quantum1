@@ -110,12 +110,18 @@ if ! ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" >/dev/null 2>&1; then
   log "Creating Kubernetes cluster: $K8S_CLUSTER_NAME"
   # Get VPC and Subnet IDs
   VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | grep -o '"id": *"[^"]*"' | head -n1 | cut -d'"' -f4)
+  if [ -z "$VPC_ID" ]; then
+    log "ERROR: VPC $VPC_NAME does not exist. Please create the VPC before proceeding."
+    log "Available VPCs:"
+    ibmcloud ks vpcs --provider vpc-gen2
+    exit 1
+  fi
   # Find the subnet ID in the correct VPC and zone
   SUBNET_ID=$(ibmcloud is subnet "$SUBNET_NAME" --output json | grep -o '"id": *"[^"]*"' | head -n1 | cut -d'"' -f4)
   SUBNET_ZONE=$(ibmcloud is subnet "$SUBNET_NAME" --output json | grep -o '"zone": *{[^}]*}' | grep -o '"name": *"[^"]*"' | cut -d'"' -f4)
   SUBNET_VPC_ID=$(ibmcloud is subnet "$SUBNET_NAME" --output json | grep -o '"vpc": *{[^}]*}' | grep -o '"id": *"[^"]*"' | cut -d'"' -f4)
-  if [ -z "$VPC_ID" ] || [ -z "$SUBNET_ID" ]; then
-    log "ERROR: Could not retrieve VPC or Subnet ID."
+  if [ -z "$SUBNET_ID" ]; then
+    log "ERROR: Could not retrieve Subnet ID."
     exit 1
   fi
   if [ "$SUBNET_VPC_ID" != "$VPC_ID" ] || [ "$SUBNET_ZONE" != "$ZONE" ]; then
