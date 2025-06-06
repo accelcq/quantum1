@@ -65,8 +65,8 @@ fi
 
 if ! ibmcloud is subnet "$SUBNET_NAME" >/dev/null 2>&1; then
   log "Creating subnet: $SUBNET_NAME"
-  # Correct argument order: --vpc VPC_NAME --zone ZONE --ipv4-address-count 256 --name SUBNET_NAME
-  if ! ibmcloud is subnet-create "$VPC_NAME" "$ZONE" --ipv4-address-count 256 --name "$SUBNET_NAME"; then
+  # Correct argument order: SUBNET_NAME VPC --ipv4-address-count 256 --zone ZONE
+  if ! ibmcloud is subnet-create "$SUBNET_NAME" "$VPC_NAME" --ipv4-address-count 256 --zone "$ZONE"; then
     log "ERROR: Failed to create subnet $SUBNET_NAME"
     exit 1
   fi
