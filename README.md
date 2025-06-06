@@ -68,9 +68,9 @@ Install via Extensions panel:
 3. Activate the VENV:
 
    ```bash
-   C:\Users\RanjanKumar\Envs\Qiskit\qiskit_100_py311\Scripts\activate
+   C:\Users\<UserName>\Envs\Qiskit\qiskit_100_py311\Scripts\activate
    ```
-4. Open folder in VS Code: `C:\Users\RanjanKumar\Projects\Qiskit\qiskit_100_py311`
+4. Open folder in VS Code: `C:\Users\<UserName>\Projects\Qiskit\qiskit_100_py311`
 5. Set interpreter: `Ctrl+Shift+P → Python: Select Interpreter → qiskit_100_py311`
 6. Install project dependencies:
 
@@ -167,7 +167,7 @@ IBM_QUANTUM_API_TOKEN="<Paste your Quantum Token>"
 ### 🗂️ Push Local Project to GitHub
 
 ```bash
-cd C:\Users\RanjanKumar\Projects\Qiskit\qiskit_100_py311
+cd C:\Users\<UserName>\Projects\Qiskit\qiskit_100_py311
 git init
 git remote add origin https://github.com/<yourgithubreponame>/quantum1.git
 git add .
