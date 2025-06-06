@@ -98,83 +98,95 @@ fi
 log "Subnet $SUBNET_NAME details: ID=$SUBNET_ID, Zone=$SUBNET_ZONE, VPC ID=$SUBNET_VPC_ID"
 if [ "$SUBNET_VPC_ID" != "$VPC_ID" ] || [ "$SUBNET_ZONE" != "$ZONE" ]; then
   log "WARNING: Subnet $SUBNET_NAME is not correctly associated with VPC $VPC_NAME and zone $ZONE."
-  log "Deleting incorrect subnet $SUBNET_NAME..."
-  if ! ibmcloud is subnet-delete "$SUBNET_NAME" -f; then
-    log "ERROR: Failed to delete subnet $SUBNET_NAME. Please delete it manually."
-    exit 1
+  # Check if subnet is in use by IKS worker nodes
+  IN_USE_MSG=$(ibmcloud is subnet "$SUBNET_NAME" --output json | jq -r '.status')
+  if kubectl get nodes --selector='topology.kubernetes.io/zone='"$SUBNET_ZONE"'' -o name 2>/dev/null | grep -q .; then
+    log "WARNING: Subnet $SUBNET_NAME is in use by IKS worker nodes. Skipping deletion and proceeding."
+  else
+    log "Deleting incorrect subnet $SUBNET_NAME..."
+    if ! ibmcloud is subnet-delete "$SUBNET_NAME" -f; then
+      log "ERROR: Failed to delete subnet $SUBNET_NAME. Please delete it manually if not in use."
+      exit 1
+    fi
+    log "Recreating subnet $SUBNET_NAME with correct VPC and zone..."
+    # Refresh VPC_ID in case it was incorrect before
+    VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | jq -r '.id')
+    if [ -z "$VPC_ID" ]; then
+      log "ERROR: Could not retrieve VPC ID for $VPC_NAME before recreating subnet"
+      exit 1
+    fi
+    if ! ibmcloud is subnet-create "$SUBNET_NAME" --vpc "$VPC_ID" --ipv4-address-count 256 --zone "$ZONE"; then
+      log "ERROR: Failed to recreate subnet $SUBNET_NAME"
+      exit 1
+    fi
+    # Refresh subnet info after recreation
+    SUBNET_INFO=$(ibmcloud is subnet "$SUBNET_NAME" --output json)
+    SUBNET_ID=$(echo "$SUBNET_INFO" | jq -r '.id')
+    SUBNET_ZONE=$(echo "$SUBNET_INFO" | jq -r '.zone.name')
+    SUBNET_VPC_ID=$(echo "$SUBNET_INFO" | jq -r '.vpc.id')
+    log "Subnet $SUBNET_NAME recreated: ID=$SUBNET_ID, Zone=$SUBNET_ZONE, VPC ID=$SUBNET_VPC_ID"
   fi
-  log "Recreating subnet $SUBNET_NAME with correct VPC and zone..."
-  # Refresh VPC_ID in case it was incorrect before
-  VPC_ID=$(ibmcloud is vpc "$VPC_NAME" --output json | jq -r '.id')
-  if [ -z "$VPC_ID" ]; then
-    log "ERROR: Could not retrieve VPC ID for $VPC_NAME before recreating subnet"
-    exit 1
-  fi
-  if ! ibmcloud is subnet-create "$SUBNET_NAME" --vpc "$VPC_ID" --ipv4-address-count 256 --zone "$ZONE"; then
-    log "ERROR: Failed to recreate subnet $SUBNET_NAME"
-    exit 1
-  fi
-  # Refresh subnet info after recreation
-  SUBNET_INFO=$(ibmcloud is subnet "$SUBNET_NAME" --output json)
-  SUBNET_ID=$(echo "$SUBNET_INFO" | jq -r '.id')
-  SUBNET_ZONE=$(echo "$SUBNET_INFO" | jq -r '.zone.name')
-  SUBNET_VPC_ID=$(echo "$SUBNET_INFO" | jq -r '.vpc.id')
-  log "Subnet $SUBNET_NAME recreated: ID=$SUBNET_ID, Zone=$SUBNET_ZONE, VPC ID=$SUBNET_VPC_ID"
 fi
 
-# Ensure public gateway exists and is attached to the subnet
-if ! ibmcloud is public-gateway "$GATEWAY_NAME" >/dev/null 2>&1; then
-  log "Creating public gateway: $GATEWAY_NAME"
-  if ! ibmcloud is public-gateway-create "$GATEWAY_NAME" "$VPC_NAME" "$ZONE"; then
-    log "ERROR: Failed to create public gateway $GATEWAY_NAME"
-    exit 1
-  fi
-  if ! ibmcloud is subnet-update "$SUBNET_NAME" --pgw "$GATEWAY_NAME"; then
-    log "ERROR: Failed to attach public gateway $GATEWAY_NAME to subnet $SUBNET_NAME"
-    exit 1
-  fi
+# Check if any IKS worker node is in 'waiting' state and skip infra changes if so
+WORKER_WAITING=$(ibmcloud ks worker ls --cluster "$K8S_CLUSTER_NAME" --output json 2>/dev/null | jq -r '.[] | select(.state=="waiting") | .id' | wc -l)
+if [ "$WORKER_WAITING" -gt 0 ]; then
+  log "Detected IKS worker(s) in 'waiting' state. Skipping gateway/cluster creation/deletion and proceeding to next deployment stage."
 else
-  log "Public gateway $GATEWAY_NAME already exists."
-fi
-
-# Ensure IBM Cloud Kubernetes Service plug-in is installed
-if ! ibmcloud plugin list | grep -q 'container-service'; then
-  log "IBM Cloud Kubernetes Service plug-in not found. Installing..."
-  if ! ibmcloud plugin install container-service -f; then
-    log "ERROR: Failed to install IBM Cloud Kubernetes Service plug-in."
-    exit 1
+  # Ensure public gateway exists and is attached to the subnet
+  if ! ibmcloud is public-gateway "$GATEWAY_NAME" >/dev/null 2>&1; then
+    log "Creating public gateway: $GATEWAY_NAME"
+    if ! ibmcloud is public-gateway-create "$GATEWAY_NAME" "$VPC_NAME" "$ZONE"; then
+      log "ERROR: Failed to create public gateway $GATEWAY_NAME"
+      exit 1
+    fi
+    if ! ibmcloud is subnet-update "$SUBNET_NAME" --pgw "$GATEWAY_NAME"; then
+      log "ERROR: Failed to attach public gateway $GATEWAY_NAME to subnet $SUBNET_NAME"
+      exit 1
+    fi
+  else
+    log "Public gateway $GATEWAY_NAME already exists."
   fi
-else
-  log "IBM Cloud Kubernetes Service plug-in is already installed."
-fi
 
-# Kubernetes cluster setup
-if ! ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" >/dev/null 2>&1; then
-  log "Creating Kubernetes cluster: $K8S_CLUSTER_NAME"
-  ibmcloud ks cluster create vpc-gen2 \
-    --name "$K8S_CLUSTER_NAME" \
-    --vpc-id "$VPC_ID" \
-    --zone "$ZONE" \
-    --flavor bx2.4x16 \
-    --workers 2 \
-    --subnet-id "$SUBNET_ID"
-else
-  log "Kubernetes cluster $K8S_CLUSTER_NAME already exists."
-fi
-
-# Wait for Kubernetes cluster to be fully deployed
-log "Waiting for Kubernetes cluster $K8S_CLUSTER_NAME to be fully deployed..."
-CLUSTER_STATE=""
-while true; do
-  CLUSTER_STATE=$(ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" --output json | jq -r '.state')
-  log "Current cluster state: $CLUSTER_STATE"
-  if [ "$CLUSTER_STATE" == "normal" ]; then
-    log "Cluster $K8S_CLUSTER_NAME is fully deployed."
-    break
+  # Ensure IBM Cloud Kubernetes Service plug-in is installed
+  if ! ibmcloud plugin list | grep -q 'container-service'; then
+    log "IBM Cloud Kubernetes Service plug-in not found. Installing..."
+    if ! ibmcloud plugin install container-service -f; then
+      log "ERROR: Failed to install IBM Cloud Kubernetes Service plug-in."
+      exit 1
+    fi
+  else
+    log "IBM Cloud Kubernetes Service plug-in is already installed."
   fi
-  log "Cluster not ready yet. Waiting 30 seconds..."
-  sleep 30
-done
+
+  # Kubernetes cluster setup
+  if ! ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" >/dev/null 2>&1; then
+    log "Creating Kubernetes cluster: $K8S_CLUSTER_NAME"
+    ibmcloud ks cluster create vpc-gen2 \
+      --name "$K8S_CLUSTER_NAME" \
+      --vpc-id "$VPC_ID" \
+      --zone "$ZONE" \
+      --flavor bx2.4x16 \
+      --workers 2 \
+      --subnet-id "$SUBNET_ID"
+  else
+    log "Kubernetes cluster $K8S_CLUSTER_NAME already exists."
+  fi
+
+  # Wait for Kubernetes cluster to be fully deployed
+  log "Waiting for Kubernetes cluster $K8S_CLUSTER_NAME to be fully deployed..."
+  CLUSTER_STATE=""
+  while true; do
+    CLUSTER_STATE=$(ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" --output json | jq -r '.state')
+    log "Current cluster state: $CLUSTER_STATE"
+    if [ "$CLUSTER_STATE" == "normal" ]; then
+      log "Cluster $K8S_CLUSTER_NAME is fully deployed."
+      break
+    fi
+    log "Cluster not ready yet. Waiting 30 seconds..."
+    sleep 30
+  done
+fi
 
 # Configure kubectl access
 ibmcloud ks cluster config --cluster "$K8S_CLUSTER_NAME"
@@ -237,11 +249,6 @@ if [ ! -f quantum1.yaml ]; then
 fi
 
 # Kubernetes cluster config
-log "Checking for Kubernetes cluster: $K8S_CLUSTER_NAME"
-if [ -z "$K8S_CLUSTER_NAME" ]; then
-  log "ERROR: K8S_CLUSTER_NAME is not set. Please set it in your environment."
-  exit 1
-fi
 K8S_NAMESPACE="${K8S_NAMESPACE:-default}"
 log "Using Kubernetes namespace: $K8S_NAMESPACE"
 if ! kubectl get namespace "$K8S_NAMESPACE" >/dev/null 2>&1; then
