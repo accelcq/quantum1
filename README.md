@@ -10,11 +10,11 @@ This project provides a full-stack template to build, containerize, and deploy a
 Build a Python FastAPI application that executes quantum circuits via Qiskit SDK, dockerize the application, and deploy it seamlessly on IBM Cloud Code Engine using GitHub Actions and CLI automation.
 ## 🖥️ Development Environment Overview
 
-![Development Environment for IBM Qiskit](./docs/Development%20Environment%20for%20IBM%20Qiskit.png)
+![Development Environment for IBM Qiskit](./Development_Environment_for_IBM_Qiskit.png)
 ---
 ## 🖼️ Deployment Architecture
 
-![AccelCQ Quantum1 Deployment Architecture](./docs/AccelCQ_quantum1_Deployment_Architecture.png)
+![AccelCQ Quantum1 Deployment Architecture](./AccelCQ_quantum1_Deployment_Architecture.png)
 ----
 
 ## 🧰 Prerequisites
@@ -186,7 +186,7 @@ git push -u origin main
 For additional deployment strategies and a comparison to help you choose the best approach, see [DeploymentOptions.md](./DeploymentOptions.md).
 ## 🏗️ Deployment Architecture Options
 
-![Deployment Architecture Options - IBM Cloud-Quantum](./Deployment%20Architecture%20Options%20-%20IBM%20Cloud-Quantum.png)
+![Deployment Architecture Options - IBM Cloud-Quantum](./Deployment_Architecture_Options_IBM_Cloud_Quantum.png)
 ### ☁️ IBM Cloud Code Engine Deployment
 
 ```bash
