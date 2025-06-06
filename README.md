@@ -48,6 +48,40 @@ Install the following on your local machine:
 | IBM Cloud CLI | [Install CLI](https://github.com/IBM-Cloud/ibm-cloud-cli-release)                                     |
 | Pyenv-win     | [pyenv-win](https://github.com/pyenv-win/pyenv-win) (optional)                                        |
 
+✅ How to Fix JQ not installed on Windows (MINGW64 / Git Bash)
+Download jq CLI binary:
+
+Visit: https://stedolan.github.io/jq/download/
+
+Download: jq-win64.exe
+
+Place jq.exe in your PATH:
+
+Copy the binary to a directory like:
+
+```makefile
+C:\Program Files\Git\usr\bin\
+```
+or add a custom folder to your Windows PATH.
+
+Verify installation:
+Run this in your Git Bash or VS Code terminal:
+
+```bash
+jq --version
+```
+You should see something like:
+jq-1.6
+
+🛠 Alternative Temporary Fix
+If you downloaded jq-win64.exe but haven't added it to PATH yet:
+
+```bash
+./jq-win64.exe --version
+```
+You could also modify your script to point directly to that path (not recommended for portability).
+
+
 ### 4. VS Code Extensions (Manual Installation)
 
 Install via Extensions panel:
