@@ -40,11 +40,22 @@ if [ -z "$VPC_NAME" ] || [ -z "$SUBNET_NAME" ] || [ -z "$GATEWAY_NAME" ] || [ -z
   log "ERROR: VPC_NAME, SUBNET_NAME, GATEWAY_NAME, and ZONE must be set in the environment."
   exit 1
 fi
+# Ensure IBM Cloud VPC plugin is installed
+if ! ibmcloud plugin list | grep -q 'vpc-infrastructure'; then
+  log "IBM Cloud VPC plugin not found. Installing..."
+  if ! ibmcloud plugin install vpc-infrastructure -f; then
+    log "ERROR: Failed to install IBM Cloud VPC plugin."
+    exit 1
+  fi
+else
+  log "IBM Cloud VPC plugin is already installed."
+fi
+
 # Check if VPC and Subnet exist, create if not
 log "Checking for VPC and Subnet..."
 if ! ibmcloud is vpc "$VPC_NAME" >/dev/null 2>&1; then
   log "Creating VPC: $VPC_NAME"
-  if ! ibmcloud is vpc-create --name "$VPC_NAME"; then
+  if ! ibmcloud is vpc-create "$VPC_NAME"; then
     log "ERROR: Failed to create VPC $VPC_NAME"
     exit 1
   fi
@@ -55,7 +66,7 @@ fi
 if ! ibmcloud is subnet "$SUBNET_NAME" >/dev/null 2>&1; then
   log "Creating subnet: $SUBNET_NAME"
   # Correct argument order: --vpc VPC_NAME --zone ZONE --ipv4-address-count 256 --name SUBNET_NAME
-  if ! ibmcloud is subnet-create --vpc "$VPC_NAME" --zone "$ZONE" --ipv4-address-count 256 --name "$SUBNET_NAME"; then
+  if ! ibmcloud is subnet-create "$VPC_NAME" "$ZONE" --ipv4-address-count 256 --name "$SUBNET_NAME"; then
     log "ERROR: Failed to create subnet $SUBNET_NAME"
     exit 1
   fi
@@ -65,7 +76,7 @@ fi
 
 if ! ibmcloud is public-gateway "$GATEWAY_NAME" >/dev/null 2>&1; then
   log "Creating public gateway: $GATEWAY_NAME"
-  if ! ibmcloud is public-gateway-create --name "$GATEWAY_NAME" --zone "$ZONE" --vpc "$VPC_NAME"; then
+  if ! ibmcloud is public-gateway-create "$ZONE" "$VPC_NAME" --name "$GATEWAY_NAME"; then
     log "ERROR: Failed to create public gateway $GATEWAY_NAME"
     exit 1
   fi
