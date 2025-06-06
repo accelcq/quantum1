@@ -1,0 +1,48 @@
+# setup_quantum1_ansible_vm.yaml
+# This file contains the Ansible playbook for deploying the Quantum1 application in IBM Cloud VM.
+# It includes tasks to create a secret, deploy the application, and set up a persistent volume claim.
+---
+- name: Setup quantum1 app on IBM Cloud VM (Compute VM Instance)
+  hosts: quantum
+  become: yes
+  vars:
+    docker_image: "us.icr.io/accelcq/quantum1:latest"
+  tasks:
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Pull Docker image
+      command: docker pull {{ docker_image }}
+
+    - name: Run Docker container
+      command: docker run -d -p 8000:8000 {{ docker_image }}
+    - name: Create directory for execution log
+      file:
+        path: /app
+        state: directory
+    - name: Create execution log file
+      file:
+        path: /app/execution_log.log
+        state: touch
+    - name: Ensure execution log file has correct permissions
+      file:
+        path: /app/execution_log.log
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Create persistent volume for execution log
+      command: |
+        docker volume create quantum1_log_volume
+    - name: Run Docker container with persistent volume
+      command: |
+        docker run -d -p 8000:8000 --name quantum1 --mount source=quantum1_log_volume,target=/app/execution_log.log {{ docker_image }}
+        
