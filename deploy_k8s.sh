@@ -1,14 +1,20 @@
-#deploy_k8s.sh
+#deploy_k8s.sh from accelcq.com
+# This script deploys the Quantum1 application to IBM Cloud Kubernetes Service.
+
 #!/bin/bash
 set -e
 
 # Load .env-style secrets if available
 if [ -f .env.local ]; then
-  export $(grep -v '^#' .env.local | xargs)
+ set -a
+  . ./.env.local
+    export $(grep -v '^#' .env.local | xargs)
+  set +a
 fi
 
 # IBM Cloud login and registry setup
 ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION"
+ibmcloud target -g "$IBM_CLOUD_RESOURCE_GROUP"
 ibmcloud cr login
 
 # Build and push Docker image
