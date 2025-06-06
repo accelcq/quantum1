@@ -1,6 +1,6 @@
 # deploy from project local directory to IBM Cloud code engine deployment from deploy.sh
 
-# contents: deploy.yaml
+# contents: deploy_ce.yaml
 apiVersion: codeengine.cloud.ibm.com/v1
 kind: Application
 metadata:

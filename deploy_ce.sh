@@ -1,7 +1,7 @@
 # This script deploys a Quantum application to IBM Cloud Code Engine without github.
 # Ensure you have the IBM Cloud CLI and Code Engine plugin installed.
 
-# contents: deploy.sh
+# contents: deploy_ce.sh
 #!/bin/bash
 set -e
 
@@ -34,7 +34,7 @@ docker build -t quantum1 .
 docker tag quantum1 us.icr.io/$IBM_CLOUD_NAMESPACE/quantum1:latest
 docker push us.icr.io/$IBM_CLOUD_NAMESPACE/quantum1:latest
 
-ibmcloud ce application apply --file deploy.yaml
+ibmcloud ce application apply --file deploy_ce.yaml
 
 echo "🌍 Deployment complete. Access your app at:"
 ibmcloud ce application get --name quantum1 --output url
