@@ -86,6 +86,23 @@ else
   log "Subnet $SUBNET_NAME already exists."
 fi
 
+# Validate subnet association
+SUBNET_INFO=$(ibmcloud is subnet "$SUBNET_NAME" --output json)
+SUBNET_ID=$(echo "$SUBNET_INFO" | jq -r '.id')
+SUBNET_ZONE=$(echo "$SUBNET_INFO" | jq -r '.zone.name')
+SUBNET_VPC_ID=$(echo "$SUBNET_INFO" | jq -r '.vpc.id')
+if [ -z "$SUBNET_ID" ] || [ -z "$SUBNET_ZONE" ] || [ -z "$SUBNET_VPC_ID" ]; then
+  log "ERROR: Could not retrieve Subnet ID, Zone, or VPC ID for $SUBNET_NAME"
+  exit 1
+fi
+log "Subnet $SUBNET_NAME details: ID=$SUBNET_ID, Zone=$SUBNET_ZONE, VPC ID=$SUBNET_VPC_ID"
+if [ "$SUBNET_VPC_ID" != "$VPC_ID" ] || [ "$SUBNET_ZONE" != "$ZONE" ]; then
+  log "ERROR: Subnet $SUBNET_NAME is not correctly associated with VPC $VPC_NAME and zone $ZONE."
+  log "Please manually delete and recreate the subnet with correct association."
+  exit 1
+fi
+
+# Ensure public gateway exists and is attached to the subnet
 if ! ibmcloud is public-gateway "$GATEWAY_NAME" >/dev/null 2>&1; then
   log "Creating public gateway: $GATEWAY_NAME"
   if ! ibmcloud is public-gateway-create "$GATEWAY_NAME" "$VPC_NAME" "$ZONE"; then
