@@ -162,6 +162,20 @@ else
   log "Kubernetes cluster $K8S_CLUSTER_NAME already exists."
 fi
 
+# Wait for Kubernetes cluster to be fully deployed
+log "Waiting for Kubernetes cluster $K8S_CLUSTER_NAME to be fully deployed..."
+CLUSTER_STATE=""
+while true; do
+  CLUSTER_STATE=$(ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" --output json | jq -r '.state')
+  log "Current cluster state: $CLUSTER_STATE"
+  if [ "$CLUSTER_STATE" == "normal" ]; then
+    log "Cluster $K8S_CLUSTER_NAME is fully deployed."
+    break
+  fi
+  log "Cluster not ready yet. Waiting 30 seconds..."
+  sleep 30
+done
+
 # Configure kubectl access
 ibmcloud ks cluster config --cluster "$K8S_CLUSTER_NAME"
 
