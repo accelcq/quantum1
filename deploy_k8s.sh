@@ -127,6 +127,13 @@ if ! ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" >/dev/null 2>&1; then
   if [ "$SUBNET_VPC_ID" != "$VPC_ID" ] || [ "$SUBNET_ZONE" != "$ZONE" ]; then
     log "ERROR: Subnet $SUBNET_NAME is not in VPC $VPC_NAME and zone $ZONE."
     log "Please create a subnet in the correct VPC and zone."
+    log "Checking if VPC $VPC_NAME exists..."
+    if ! ibmcloud is vpc "$VPC_NAME" >/dev/null 2>&1; then
+      log "ERROR: VPC $VPC_NAME does not exist. Please create the VPC first."
+      log "Available VPCs:"
+      ibmcloud ks vpcs --provider vpc-gen2
+      exit 1
+    fi
     log "Available subnets in VPC and zone:"
     ibmcloud ks subnets --provider vpc-gen2 --vpc-id "$VPC_ID" --zone "$ZONE"
     exit 1
