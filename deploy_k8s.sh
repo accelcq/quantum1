@@ -80,7 +80,7 @@ if ! ibmcloud is public-gateway "$GATEWAY_NAME" >/dev/null 2>&1; then
     log "ERROR: Failed to create public gateway $GATEWAY_NAME"
     exit 1
   fi
-  if ! ibmcloud is subnet-update "$SUBNET_NAME" --public-gateway "$GATEWAY_NAME"; then
+  if ! ibmcloud is subnet-update "$SUBNET_NAME" --pgw "$GATEWAY_NAME"; then
     log "ERROR: Failed to attach public gateway $GATEWAY_NAME to subnet $SUBNET_NAME"
     exit 1
   fi
@@ -88,10 +88,21 @@ else
   log "Public gateway $GATEWAY_NAME already exists."
 fi
 
+# Ensure IBM Cloud Kubernetes Service plug-in is installed
+if ! ibmcloud plugin list | grep -q 'container-service'; then
+  log "IBM Cloud Kubernetes Service plug-in not found. Installing..."
+  if ! ibmcloud plugin install container-service -f; then
+    log "ERROR: Failed to install IBM Cloud Kubernetes Service plug-in."
+    exit 1
+  fi
+else
+  log "IBM Cloud Kubernetes Service plug-in is already installed."
+fi
+
 # Kubernetes cluster setup
-if ! ibmcloud oc cluster get --cluster "$K8S_CLUSTER_NAME" >/dev/null 2>&1; then
+if ! ibmcloud ks cluster get --cluster "$K8S_CLUSTER_NAME" >/dev/null 2>&1; then
   log "Creating Kubernetes cluster: $K8S_CLUSTER_NAME"
-  ibmcloud oc cluster create vpc-gen2 \
+  ibmcloud ks cluster create vpc-gen2 \
     --name "$K8S_CLUSTER_NAME" \
     --vpc "$VPC_NAME" \
     --zone "$ZONE" \
@@ -103,7 +114,7 @@ else
 fi
 
 # Configure kubectl access
-ibmcloud oc cluster config --cluster "$K8S_CLUSTER_NAME"
+ibmcloud ks cluster config --cluster "$K8S_CLUSTER_NAME"
 
 # Check cluster status
 if ! kubectl cluster-info > /dev/null 2>&1; then
@@ -162,10 +173,6 @@ if [ ! -f quantum1.yaml ]; then
   exit 1
 fi
 
-# Kubernetes cluster config
-log "Checking for Kubernetes cluster: $K8S_CLUSTER_NAME"
-if [ -z "$K8S_CLUSTER_NAME" ]; then
-  log "ERROR: K8S_CLUSTER_NAME is not set. Please set it in your environment."
 # Kubernetes cluster config
 log "Checking for Kubernetes cluster: $K8S_CLUSTER_NAME"
 if [ -z "$K8S_CLUSTER_NAME" ]; then
