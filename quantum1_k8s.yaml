@@ -5,14 +5,33 @@ kind: Secret
 metadata:
   name: quantum1-secrets
   namespace: accelcqnamespace
+type: Opaque
 stringData:
-  IBM_QUANTUM_API_TOKEN: $IBM_QUANTUM_API_TOKEN
+  IBM_QUANTUM_API_TOKEN: "${IBM_QUANTUM_API_TOKEN}"
+
 ---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: quantum1-log-pvc
+  namespace: accelcqnamespace
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: quantum1-deployment
   namespace: accelcqnamespace
+  labels:
+    app: quantum1
 spec:
   replicas: 1
   selector:
@@ -24,46 +43,38 @@ spec:
         app: quantum1
     spec:
       containers:
-      - name: quantum1
-        image: us.icr.io/accelcqnamespace/quantum1:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: IBM_QUANTUM_API_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: quantum1-secrets
-              key: IBM_QUANTUM_API_TOKEN
-        volumeMounts:
-        - mountPath: /app/execution_log.log
-          name: log-volume
-          subPath: execution_log.log
+        - name: quantum1
+          image: us.icr.io/accelcqnamespace/quantum1:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: IBM_QUANTUM_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: quantum1-secrets
+                  key: IBM_QUANTUM_API_TOKEN
+          volumeMounts:
+            - name: log-volume
+              mountPath: /app/execution_log.log
+              subPath: execution_log.log
       volumes:
-      - name: log-volume
-        persistentVolumeClaim:
-          claimName: quantum1-log-pvc
+        - name: log-volume
+          persistentVolumeClaim:
+            claimName: quantum1-log-pvc
+
 ---
+
 apiVersion: v1
-metadata:
-  name: quantum1-log-pvc
-  namespace: accelcqnamespace
-  name: quantum1-log-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
+kind: Service
 metadata:
   name: quantum1-service
   namespace: accelcqnamespace
-metadata:
-  name: quantum1-service
 spec:
-  type: LoadBalancer
   selector:
     app: quantum1
+  type: LoadBalancer
   ports:
-    - port: 80
+    - protocol: TCP
+      port: 8080
       targetPort: 8000
