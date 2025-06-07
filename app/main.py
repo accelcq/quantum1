@@ -6,13 +6,17 @@ from pydantic import BaseModel
 import logging
 from typing import Any, List
 from datetime import datetime, timezone
+import os
 
 # Qiskit 1.0.0 imports for quantum stock prediction
 from qiskit import QuantumCircuit # type: ignore
 from qiskit_aer import Aer  # type: ignore
 
 # Set up logging to a file (simulate IBM Cloud Object Storage)
-log_filename = "execution_log.log"
+log_dir = "/app/logs"
+os.makedirs(log_dir, exist_ok=True)  # Ensures the directory exists
+log_filename = os.path.join(log_dir, "execution_log.log")
+
 logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s %(message)s')
 
 def log_step(step: str, detail: str):
