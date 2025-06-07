@@ -56,7 +56,7 @@ spec:
                   key: IBM_QUANTUM_API_TOKEN
           volumeMounts:
             - name: log-volume
-              mountPath: /app/execution_log.log
+              mountPath: /app/logs
               subPath: execution_log.log
       volumes:
         - name: log-volume
