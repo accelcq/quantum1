@@ -23,7 +23,7 @@ qiskit-optimization>=0.3.0 # For optimization problems
 matplotlib>=3.4.0 # For plotting
 seaborn>=0.11.0 # For data visualization
 typing-extensions>=3.10.0 # For type hinting support
-types-qiskit>=1.0.0 # Type stubs for Qiskit
+#types-qiskit # Type stubs for Qiskit
 python-multipart # For handling file uploads
 bcrypt # For password hashing
 jq # For JSON processing
