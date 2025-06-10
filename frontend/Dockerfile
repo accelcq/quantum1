@@ -4,18 +4,18 @@ FROM node:18 as build
 WORKDIR /app
 COPY package*.json ./
 
-RUN npm install
 # Copy the rest of the application code
 # Copy the .env file to the working directory
 COPY .env .env
 COPY . .
 
 # Build the React application
-# Ensure the .env file is copied before running the build
+RUN npm install
 RUN npm run build
 
 # Stage 2: Serve with Nginx
 FROM nginx:stable-alpine
+RUN rm /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
