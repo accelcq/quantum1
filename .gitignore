@@ -23,6 +23,7 @@ frontend/package-lock.json
 !.env.example
 .env.local
 .secrets
+icr-credentials.json
 
 # Pytest cache
 .pytest_cache/
