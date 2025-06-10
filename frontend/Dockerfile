@@ -3,9 +3,11 @@
 FROM node:18 as build
 WORKDIR /app
 COPY package*.json ./
-COPY .env .env
 
 RUN npm install
+# Copy the rest of the application code
+# Copy the .env file to the working directory
+COPY .env .env
 COPY . .
 RUN npm run build
 
@@ -15,4 +17,6 @@ COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/nginx.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
-# Stage 3: Build and run the FastAPI app , it is taken care of in the backend Dockerfile in the root directory
+# Stage 3: Healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost/ || exit 1
