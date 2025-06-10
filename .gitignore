@@ -17,6 +17,12 @@ venv/
 frontend/node_modules/
 frontend/package-lock.json
 
+# Node.js dependencies and files at root
+node_modules/
+package-lock.json
+npm-debug.log*
+.npm/
+
 # Environment and secrets
 .env
 .env.*
