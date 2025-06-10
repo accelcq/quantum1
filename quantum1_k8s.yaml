@@ -64,6 +64,39 @@ spec:
             claimName: quantum1-log-pvc
 
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quantum1-frontend
+  namespace: quantum1space
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quantum1-frontend
+  template:
+    metadata:
+      labels:
+        app: quantum1-frontend
+    spec:
+      containers:
+      - name: quantum1-frontend
+        image: us.icr.io/quantum1space/quantum1-frontend:latest
+        ports:
+        - containerPort: 80
+        env:
+          - name: QUANTUM1_API_URL
+            value: "http://quantum1-service.quantum1space.svc.cluster.local:8080"
+        volumeMounts:
+          - name: log-volume
+            mountPath: /app/logs
+            subPath: execution_log.log
+      volumes:
+        - name: log-volume
+          persistentVolumeClaim:
+            claimName: quantum1-log-pvc
+            readOnly: false
+---
 
 apiVersion: v1
 kind: Service
@@ -78,3 +111,18 @@ spec:
     - protocol: TCP
       port: 8080
       targetPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quantum1-frontend-service
+  namespace: quantum1space
+spec:
+  selector:
+    app: quantum1-frontend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
