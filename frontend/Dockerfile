@@ -3,6 +3,8 @@
 FROM node:18 as build
 WORKDIR /app
 COPY package*.json ./
+COPY .env .env
+
 RUN npm install
 COPY . .
 RUN npm run build

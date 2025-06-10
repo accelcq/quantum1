@@ -1,0 +1,27 @@
+#quantum1-backend-deployment (quantum1_k8s.yaml is obsolete)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quantum1-backend
+  namespace: quantum1space
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quantum1-backend
+  template:
+    metadata:
+      labels:
+        app: quantum1-backend
+    spec:
+      containers:
+      - name: quantum1-backend
+        image: us.icr.io/quantum1space/quantum1-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: IBM_QUANTUM_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBM_QUANTUM_API_TOKEN
