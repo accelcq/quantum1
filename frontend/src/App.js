@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const API_URL = "http://localhost:8000"; // Change if deploying
+// Use environment variable for backend URL
+const API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 
 function App() {
   const [token, setToken] = useState("");
@@ -16,9 +17,10 @@ function App() {
       const res = await axios.post(`${API_URL}/token`, new URLSearchParams({
         username, password
       }));
-      console.log("Login response:", res.data); // Add this line
+      console.log("Login response:", res.data);
       setToken(res.data.access_token);
     } catch (err) {
+      console.error("Login error:", err);
       alert("Login failed");
     }
   };
@@ -29,7 +31,8 @@ function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLogs(res.data);
-    } catch {
+    } catch (err) {
+      console.error("Fetch logs error:", err);
       alert("Failed to fetch logs");
     }
   };
@@ -40,7 +43,8 @@ function App() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setResult(res.data);
-    } catch {
+    } catch (err) {
+      console.error("Predict stock error:", err);
       alert("Failed to run predict-stock API");
       setResult(null);
     }
@@ -80,3 +84,5 @@ function App() {
 }
 
 export default App;
+// Note: Make sure to set the REACT_APP_BACKEND_URL environment variable in your .env file
+// to point to your backend server URL, e.g., REACT_APP_BACKEND_URL=http://localhost:8000
