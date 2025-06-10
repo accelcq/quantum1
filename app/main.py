@@ -144,4 +144,15 @@ def get_logs(current_user: dict[str, Any] = Depends(get_current_user)) -> List[L
     log_step("Logs", "Returning log entries")
     return entries
 
-# To run: uvicorn main:app --reload
+@app.get("/")
+def root():
+    return {"status": "Quantum1 Backend API is up"}
+@app.get("/health")
+def health_check():
+    return {"status": "Quantum1 Backend API is healthy"}
+@app.get("/version")
+def version():
+    return {"version": "1.0.0", "description": "Quantum1 Backend API for stock prediction using Qiskit"}
+@app.get("/docs", include_in_schema=False)
+def custom_docs():
+    return {"message": "Custom Swagger UI is not available in this version. Use /docs for the default Swagger UI."}
