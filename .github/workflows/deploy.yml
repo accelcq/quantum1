@@ -9,13 +9,36 @@ on:
   workflow_dispatch:
 
 env:
+  # Environment variables for IBM Cloud and Kubernetes
+  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+  IBM_CLOUD_REGION: ${{ secrets.IBM_CLOUD_REGION }}
+  IBM_CLOUD_RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
+  IBM_CLOUD_NAMESPACE: ${{ secrets.IBM_CLOUD_NAMESPACE }}
+  IBM_CLOUD_CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
+  IBM_CLOUD_NAMESPACE: ${{ secrets.IBM_CLOUD_NAMESPACE }}
+  IBM_CLOUD_REGISTRY: us.icr.io
+  IBM_CLOUD_QUANTUM_API_KEY: ${{ secrets.IBM_CLOUD_QUANTUM_API_KEY }}
+  
   REGION: ${{ secrets.IBM_CLOUD_REGION }}
   RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
   CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
   NAMESPACE: ${{ secrets.IBM_CLOUD_NAMESPACE }}
   REGISTRY: us.icr.io
   REPO_FRONTEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/frontend
-  REPO_BACKEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/backend
+  REPO_BACKEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/
+  REACT_APP_BACKEND_URL: ${{ secrets.REACT_APP_BACKEND_URL }}
+  FRONTEND_IMAGE_NAME: quantum1-frontend
+  BACKEND_IMAGE_NAME: quantum1-backend
+  FRONTEND_DEPLOYMENT_FILE: quantum1-frontend-deployment.yaml
+  BACKEND_DEPLOYMENT_FILE: quantum1-backend-deployment.yaml
+  FRONTEND_SERVICE_FILE: quantum1-frontend-service.yaml
+  BACKEND_SERVICE_FILE: quantum1-backend-service.yaml
+
+  - name: Create .env file
+    run: |
+      echo "REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}" > frontend/.env
+      echo "Created .env file with backend URL"
+
 
 jobs:
   deploy:
