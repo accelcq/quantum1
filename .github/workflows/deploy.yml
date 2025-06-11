@@ -1,5 +1,6 @@
-title: Deploy Quantum1 Workflow
 name: Deploy Quantum1 Frontend and Backend to IBM Cloud
+# This GitHub Actions workflow deploys the Quantum1 frontend and backend applications to IBM Cloud Kubernetes Service.
+# It builds Docker images for both applications, pushes them to IBM Cloud Container Registry, and deploys them to the Kubernetes cluster.
 
 on:
   push:
