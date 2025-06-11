@@ -114,7 +114,7 @@ jobs:
       - name: Apply Frontend Deployment
         run: |
           echo "Applying frontend deployment to namespace $NAMESPACE"
-          kubectl apply -f quantum1-frontend-deployment.yaml -n $NAMESPACE
+          kubectl apply -f frontend/quantum1-frontend-deployment.yaml -n $NAMESPACE
           kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE
 
       - name: Print after frontend deployment
