@@ -81,7 +81,7 @@ jobs:
           echo "Frontend image pushed: $REGISTRY/$REPO_FRONTEND:latest"
 
       - name: Build and Push Backend Image
-        working-directory: .
+        working-directory: ./backend
         run: |
           echo "Building backend image: $REGISTRY/$REPO_BACKEND:latest"
           docker build -t $REGISTRY/$REPO_BACKEND:latest -f Dockerfile-backend .
