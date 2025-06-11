@@ -6,7 +6,6 @@ COPY package*.json ./
 
 # Copy the rest of the application code
 # Copy the .env file to the working directory
-COPY .env .env
 COPY . .
 
 # Build the React application
