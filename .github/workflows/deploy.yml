@@ -86,11 +86,8 @@ jobs:
           docker build -t $REGISTRY/$REPO_BACKEND:latest -f Dockerfile-backend .
           echo "Pushing backend image: $REGISTRY/$REPO_BACKEND:latest"
           docker push $REGISTRY/$REPO_BACKEND:latest
-        continue-on-error: false
-
-        run: |
           echo "Backend image pushed: $REGISTRY/$REPO_BACKEND:latest"
-        run: echo "Backend image pushed: $REGISTRY/$REPO_BACKEND:latest"
+        continue-on-error: false
 
       - name: Apply Frontend Deployment
         run: |
@@ -120,19 +117,19 @@ jobs:
           kubectl get svc -n $NAMESPACE
 
       - name: Print Backend Logs (on failure)
-        if: failure()
+        if: ${{ failure() }}
         run: |
           echo "Printing backend logs on failure"
           kubectl logs -l app=quantum1-backend -n $NAMESPACE || true
 
       - name: Print Frontend Logs (on failure)
-        if: failure()
+        if: ${{ failure() }}
         run: |
           echo "Printing frontend logs on failure"
           kubectl logs -l app=quantum1-frontend -n $NAMESPACE || true
 
       - name: Print Error Logs (on failure)
-        if: failure()
+        if: ${{ failure() }}
         run: |
           echo "Printing all pods:"
           kubectl get pods -n $NAMESPACE || true
