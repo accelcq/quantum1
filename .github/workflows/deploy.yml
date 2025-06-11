@@ -1,3 +1,4 @@
+title: Deploy Quantum1 Workflow
 name: Deploy Quantum1 Frontend and Backend to IBM Cloud
 
 on:
