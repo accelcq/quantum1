@@ -29,8 +29,8 @@ jobs:
           echo "CLUSTER_NAME: $CLUSTER_NAME"
           echo "NAMESPACE: $NAMESPACE"
           echo "REGISTRY: $REGISTRY"
-          echo "REPO_FRONTEND: $REPO_FRONTEND"
-          echo "REPO_BACKEND: $REPO_BACKEND"
+          echo "REPO_FRONTEND: $FRONTEND_IMAGE_NAME"
+          echo "REPO_BACKEND: $BACKEND_IMAGE_NAME"
 
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -81,7 +81,7 @@ jobs:
           echo "Frontend image pushed: $REGISTRY/$REPO_FRONTEND:latest"
 
       - name: Build and Push Backend Image
-        working-directory: ../
+        
         run: |
           echo "Changing directory to backend, current directory is $PWD"
           echo "Building backend image: $REGISTRY/$REPO_BACKEND:latest"
