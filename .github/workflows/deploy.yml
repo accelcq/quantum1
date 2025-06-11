@@ -4,15 +4,153 @@ on:
   push:
     branches:
       - main
+      workflow_dispatch:
 
+    env:
+      REGION: ${ secrets.IBM_CLOUD_REGION }
+      # Set the region and resource group for your IBM Cloud account  
+      RESOURCE_GROUP: ${ secrets.IBM_CLOUD_RESOURCE_GROUP }
+      # Set the resource group for your IBM Cloud account
+      CLUSTER_NAME: ${ secrets.K8S_CLUSTER_NAME }
+      NAMESPACE: ${ secrets.IBM_CLOUD_NAMESPACE }
+      REGISTRY: us.icr.io
+      REPO_FRONTEND: $NAMESPACE/${{ secrets.FRONTEND_IMAGE_NAME }}
+      REPO_BACKEND: $NAMESPACE/${{ secrets.BACKEND_IMAGE_NAME }}
+
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+          - name: Print Environment Variables
+            run: |
+              echo "REGION: $REGION"
+              echo "RESOURCE_GROUP: $RESOURCE_GROUP"
+              echo "CLUSTER_NAME: $CLUSTER_NAME"
+              echo "NAMESPACE: $NAMESPACE"
+              echo "REGISTRY: $REGISTRY"
+              echo "REPO_FRONTEND: $REPO_FRONTEND"
+              echo "REPO_BACKEND: $REPO_BACKEND"
+
+          - name: Checkout repository
+            uses: actions/checkout@v3
+
+          - name: Print after checkout
+            run: echo "Checked out repository to $PWD"
+
+          - name: Install IBM Cloud CLI
+            run: |
+              echo "Installing IBM Cloud CLI"
+              curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+              ibmcloud plugin install container-registry container-service -f
+
+          - name: Print after IBM Cloud CLI install
+            run: ibmcloud --version
+
+          - name: Authenticate with IBM Cloud
+            env:
+              IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+            run: |
+              echo "Logging in to IBM Cloud with REGION=$REGION and RESOURCE_GROUP=$RESOURCE_GROUP"
+              ibmcloud login --apikey $IBM_CLOUD_API_KEY -r $REGION -g $RESOURCE_GROUP
+              ibmcloud cr login
+              ibmcloud ks cluster config --cluster $CLUSTER_NAME
+
+          - name: Print after IBM Cloud authentication
+            run: |
+              echo "Logged in to IBM Cloud"
+              ibmcloud target
+
+          - name: Set up Docker Buildx
+            uses: docker/setup-buildx-action@v2
+
+          - name: Print after Docker Buildx setup
+            run: docker buildx version
+
+          - name: Build and Push Frontend Image
+            working-directory: ./frontend
+            run: |
+              echo "Building frontend image: $REGISTRY/$REPO_FRONTEND:latest"
+              docker build -t $REGISTRY/$REPO_FRONTEND:latest .              
+              echo "Pushing frontend image: $REGISTRY/$REPO_FRONTEND:latest"
+              docker push $REGISTRY/$REPO_FRONTEND:latest
+            continue-on-error: false
+
+          - name: Print after frontend image push
+            run: echo "Frontend image pushed: $REGISTRY/$REPO_FRONTEND:latest"
+
+          - name: Build and Push Backend Image
+            working-directory: .
+            run: |
+              echo "Building backend image: $REGISTRY/$REPO_BACKEND:latest"
+              docker build -t $REGISTRY/$REPO_BACKEND:latest -f Dockerfile-backend .
+              echo "Pushing backend image: $REGISTRY/$REPO_BACKEND:latest"
+              docker push $REGISTRY/$REPO_BACKEND:latest
+            continue-on-error: false
+
+          - name: Print after backend image push
+            run: echo "Backend image pushed: $REGISTRY/$REPO_BACKEND:latest"
+
+          - name: Apply Frontend Deployment
+            run: |
+              echo "Applying frontend deployment to namespace $NAMESPACE"
+              kubectl apply -f quantum1-frontend-deployment.yaml -n $NAMESPACE
+              kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE
+
+          - name: Print after frontend deployment
+            run: |
+              echo "Frontend deployment applied"
+              kubectl get deployment quantum1-frontend -n $NAMESPACE
+
+          - name: Apply Backend Deployment
+            run: |
+              echo "Applying backend deployment to namespace $NAMESPACE"
+              kubectl apply -f quantum1-backend-deployment.yaml -n $NAMESPACE
+              kubectl rollout status deployment/quantum1-backend -n $NAMESPACE
+
+          - name: Print after backend deployment
+            run: |
+              echo "Backend deployment applied"
+              kubectl get deployment quantum1-backend -n $NAMESPACE
+
+          - name: Debug Service Endpoints
+            run: |
+              echo "Getting service endpoints in namespace $NAMESPACE"
+              kubectl get svc -n $NAMESPACE
+
+          - name: Print Backend Logs (on failure)
+            if: failure()
+            run: |
+              echo "Printing backend logs on failure"
+              kubectl logs -l app=quantum1-backend -n $NAMESPACE || true
+
+          - name: Print Frontend Logs (on failure)
+            if: failure()
+            run: |
+              echo "Printing frontend logs on failure"
+              kubectl logs -l app=quantum1-frontend -n $NAMESPACE || true
+
+          - name: Print Error Logs (on failure)
+            if: failure()
+            run: |
+              echo "Printing all pods:"
+              kubectl get pods -n $NAMESPACE || true
+              echo "Describing all pods:"
+              kubectl describe pods -n $NAMESPACE || true
+              echo "Backend logs:"
+              kubectl logs -l app=quantum1-backend -n $NAMESPACE --tail=100 || true
+              echo "Frontend logs:"
+              kubectl logs -l app=quantum1-frontend -n $NAMESPACE --tail=100 || true
 env:
-  REGION: us-south
-  RESOURCE_GROUP: default
-  CLUSTER_NAME: quantum1-cluster
-  NAMESPACE: quantum1space
+  REGION: ${ secrets.IBM_CLOUD_REGION }
+  # Set the region and resource group for your IBM Cloud account  
+  RESOURCE_GROUP: ${ secrets.IBM_CLOUD_RESOURCE_GROUP }
+  # Set the resource group for your IBM Cloud account
+  CLUSTER_NAME: ${ secrets.K8S_CLUSTER_NAME }
+  NAMESPACE: ${ secrets.IBM_CLOUD_NAMESPACE }
   REGISTRY: us.icr.io
-  REPO_FRONTEND: quantum1space/quantum1-frontend
-  REPO_BACKEND: quantum1space/quantum1-backend
+  REPO_FRONTEND: $NAMESPACE/${{ secrets.FRONTEND_IMAGE_NAME }}
+  REPO_BACKEND: $NAMESPACE/${{ secrets.BACKEND_IMAGE_NAME }}
 
 jobs:
   deploy:
@@ -29,9 +167,9 @@ jobs:
 
       - name: Authenticate with IBM Cloud
         env:
-          IBMCLOUD_API_KEY: ${{ secrets.IBMCLOUD_API_KEY }}
+          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
         run: |
-          ibmcloud login --apikey $IBMCLOUD_API_KEY -r $REGION -g $RESOURCE_GROUP
+          ibmcloud login --apikey $IBM_CLOUD_API_KEY -r $REGION -g $RESOURCE_GROUP
           ibmcloud cr login
           ibmcloud ks cluster config --cluster $CLUSTER_NAME
 
@@ -69,9 +207,11 @@ jobs:
       - name: Print Backend Logs (on failure)
         if: failure()
         run: |
-          kubectl logs -l app=quantum1-backend -n $NAMESPACE || true
+          kubectl logs -l app=$REPO_BACKEND -n $NAMESPACE || true
 
       - name: Print Frontend Logs (on failure)
         if: failure()
         run: |
-          kubectl logs -l app=quantum1-frontend -n $NAMESPACE || true
+          kubectl describe pods -n $NAMESPACE || true
+          kubectl get pods -n $NAMESPACE || true
+          kubectl logs -l app=$REPO_FRONTEND -n $NAMESPACE || true      
