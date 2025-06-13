@@ -156,3 +156,4 @@ def version():
 @app.get("/docs", include_in_schema=False)
 def custom_docs():
     return {"message": "Custom Swagger UI is not available in this version. Use /docs for the default Swagger UI."}
+    

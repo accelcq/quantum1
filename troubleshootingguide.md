@@ -1,220 +1,253 @@
-# 🎢 IBM Cloud Quantum Deployment Troubleshooting Guide
+# Troubleshooting Guide for IBM Cloud Quantum Project Deployment
 
 ---
 
-## Summary of Identified Issue
+## Table of Contents
 
-**✅ Pod Scheduling Works**
-
-* Pods are created and scheduled onto nodes without issue.
-
-**❌ Image Pulling Fails**
-
-* External image registries such as Docker Hub and Google Container Registry (GCR) consistently timeout.
-* Even basic image pulls (e.g., `k8s.gcr.io/pause:3.9`) fail.
-
-### Final Diagnosis
-
-Worker nodes in the IBM Cloud Kubernetes cluster are blocked from reaching external container registries (e.g., Docker Hub, GCR).
-
-This strongly suggests an **outbound network restriction** at the VPC, Network ACL, or IBM Cloud infrastructure firewall level.
+1. [General Troubleshooting Overview](#general-troubleshooting-overview)
+2. [Authentication Issues](#authentication-issues)
+3. [ImagePullBackOff / Pod Stuck Issues](#imagepullbackoff--pod-stuck-issues)
+4. [IBM Cloud Container Registry (ICR) Cleanup](#ibm-cloud-container-registry-icr-cleanup)
+5. [Network ACL and DNS Troubleshooting](#network-acl-and-dns-troubleshooting)
+6. [Post-Deployment Validation](#post-deployment-validation)
+7. [Full Script: cleanupibmclouddiskspace.sh](#full-script-cleanupibmclouddiskspacesh)
+8. [Common IBM Cloud CLI Commands](#common-ibm-cloud-cli-commands)
+9. [Expired Kubernetes Token (BXNIM0408E)](#expired-kubernetes-token-bxnim0408e)
+10. [IBM Cloud Support](#ibm-cloud-support)
 
 ---
 
-## 🚧 Immediate Resolution Plan
+## General Troubleshooting Overview
 
-### 1. ✅ Check IBM Cloud Network Security Groups (NSGs) / Firewalls
+Make sure you're running commands from your project root directory (e.g., `~/Projects/Qiskit/qiskit_100_py311`).
 
-#### A. In IBM Cloud Console
+### Initial Setup Steps for First-Time Developers:
 
-* Go to: **Menu → VPC Infrastructure → Network → Security groups**
-* Select your cluster’s region.
-* Check outbound rules:
+1. Ensure you're logged in to IBM Cloud:
 
-  * ✅ Ensure **TCP on port 443** to **0.0.0.0/0** is allowed.
+   ```bash
+   ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION"
+   ```
 
-#### B. In CLI
+2. Authenticate to Container Registry:
 
-```bash
-ibmcloud login --sso
-ibmcloud plugin install vpc-infrastructure
-ibmcloud target -r <region>
-ibmcloud is security-groups
-ibmcloud is security-group <security-group-id>
-ibmcloud is security-group-rule-add <security-group-id> outbound tcp --port-min 443 --port-max 443 --remote 0.0.0.0/0
-```
+   ```bash
+   ibmcloud cr login
+   ```
 
-### 2. 🌐 Check IBM VPC Network ACLs
+3. Download Kubernetes config:
 
-* Go to: **VPC Infrastructure → Network → Network ACLs**
-* Select the ACL for your worker nodes’ subnet.
-* Ensure there’s an **Outbound TCP rule allowing port 443** to `0.0.0.0/0`.
+   ```bash
+   ibmcloud ks cluster config --cluster quantum1-cluster
+   ```
 
-### 3. 🧪 Test Node Connectivity from Inside the Cluster
+4. Test Kubernetes CLI:
 
-```bash
-kubectl run net-debug --rm -it --image=nicolaka/netshoot -- bash
-```
+   ```bash
+   kubectl get nodes
+   ```
 
-Inside the pod:
+> Always run these steps before any `kubectl` commands.
 
-```bash
-nslookup registry-1.docker.io
-curl https://registry-1.docker.io/v2/
-```
-
-Expected: JSON error confirming access (e.g., UNAUTHORIZED).
+You can also use GitHub Codespaces or VS Code terminal to run these steps interactively.
 
 ---
 
-## ✅ IBM Container Registry Workaround (Recommended)
+## Authentication Issues
 
-### Step-by-Step
-
-```bash
-ibmcloud cr login
-ibmcloud cr namespace-add quantum1space
-
-# Tag & Push
-docker tag quantum1:latest us.icr.io/quantum1space/quantum1:latest
-docker push us.icr.io/quantum1space/quantum1:latest
-```
-
-### Update Kubernetes YAML
-
-```yaml
-containers:
-  - name: quantum1
-    image: us.icr.io/quantum1space/quantum1:latest
-```
-
-### Apply to Correct Namespace
+If you get an error like:
 
 ```bash
-kubectl apply -f quantum1_k8s.yaml -n quantum1space
+Provided refresh token is expired
+```
+
+Re-authenticate:
+
+```bash
+ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION"
+ibmcloud ks cluster config --cluster quantum1-cluster
+kubectl get nodes
 ```
 
 ---
 
-## 🔐 Fixing 401 Unauthorized (Private Image Access)
+## ImagePullBackOff / Pod Stuck Issues
 
-1. **Generate an IBM API Key** from [IBM Cloud Console](https://cloud.ibm.com/iam/apikeys)
-2. **Create Image Pull Secret**
+When the pod shows `ImagePullBackOff`, it means your image is inaccessible from the cluster.
+
+### Solution: Create a Kubernetes image pull secret
 
 ```bash
 kubectl create secret docker-registry icr-secret \
   --docker-server=us.icr.io \
   --docker-username=iamapikey \
-  --docker-password="<your-api-key>" \
+  --docker-password="$IBM_CLOUD_API_KEY" \
   --docker-email=you@example.com \
-  -n quantum1space
-```
+  -n <Your IBM Container Registry namespace>
 
-3. **Patch Service Account**
-
-```bash
-kubectl patch serviceaccount default -n quantum1space \
+kubectl patch serviceaccount default -n <Your IBM Container Registry namespace> \
   -p '{"imagePullSecrets":[{"name":"icr-secret"}]}'
 ```
 
-4. **Restart Pods**
+---
+
+## IBM Cloud Container Registry (ICR) Cleanup
+
+To resolve quota-related issues:
+
+* [Quota Troubleshooting](https://cloud.ibm.com/docs/Registry?topic=Registry-troubleshoot-quota)
+* [Check Quota Usage](https://cloud.ibm.com/docs/Registry?topic=Registry-registry_quota#registry_quota_get)
+* [Free Up Quota](https://cloud.ibm.com/docs/Registry?topic=Registry-registry_quota#registry_quota_freeup)
+* [Upgrade Plan](https://cloud.ibm.com/docs/Registry?topic=Registry-registry_overview&interface=ui#registry_plan_upgrade)
+
+### Full Script: cleanupibmclouddiskspace.sh
 
 ```bash
-kubectl rollout restart deployment quantum1-deployment -n quantum1space
+#!/bin/bash
+# cleanupibmclouddiskspace.sh
+
+NAMESPACE=<Your IBM Container Registry namespace>
+REGION=us.icr.io
+
+if [ -f .env.local ]; then
+  set -a
+  source .env.local
+  set +a
+  echo "🔑 Loaded environment variables from .env.local"
+else
+  echo "Warning: .env.local file not found. Please ensure it exists."
+fi
+
+if [ -z "$IBM_CLOUD_API_KEY" ]; then
+  echo "Error: IBM_CLOUD_API_KEY not set."
+  exit 1
+fi
+
+ibmcloud login --apikey $IBM_CLOUD_API_KEY
+ibmcloud target -r us-south
+ibmcloud cr region-set $REGION
+ibmcloud cr login
+
+if ! command -v jq &> /dev/null; then
+  echo "jq is required but not installed."
+  exit 1
+fi
+
+if ! ibmcloud is target >/dev/null 2>&1; then
+  echo "Not logged in to IBM Cloud."
+  exit 1
+fi
+
+if ! ibmcloud cr namespace-list | grep -q "$NAMESPACE"; then
+  echo "Namespace $NAMESPACE does not exist."
+  exit 1
+fi
+
+images_output=$(ibmcloud cr image-digests --restrict $NAMESPACE 2>&1)
+status=$?
+
+if [ $status -ne 0 ]; then
+  echo "Failed to retrieve images: $images_output"
+  exit 1
+fi
+
+echo "$images_output" | awk 'NR>2 && NF>0 {print}' | while read -r line; do
+  repo=$(echo "$line" | awk '{print $1}')
+  digest=$(echo "$line" | awk '{print $2}')
+  if [[ "$digest" == sha256:* ]]; then
+    full_image="$repo@$digest"
+    echo "Deleting image: $full_image"
+    ibmcloud cr image-rm "$full_image"
+  fi
+done
 ```
 
 ---
 
-## 📋 Useful IBM Cloud CLI Commands
+## Network ACL and DNS Troubleshooting
+
+Check:
+
+* VPC Infrastructure > Network ACLs
+* Security Groups > Ensure outbound TCP 443 is allowed
+
+### Debug from Pod:
 
 ```bash
-ibmcloud cr login                           # Login to IBM CR
-ibmcloud cr namespace-add quantum1space    # Add CR namespace
-ibmcloud cr image-list                     # List tagged images
-ibmcloud cr image-digests                  # Show all digests
-ibmcloud cr image-rm <image@sha256:...>    # Delete by digest
-ibmcloud cr trash-list                     # See trash images
-ibmcloud cr quota                          # View free-tier limits
+kubectl run debug-dns --rm -it --image=nicolaka/netshoot -- bash
+nslookup registry-1.docker.io
+curl https://registry-1.docker.io/v2/
 ```
 
 ---
 
-## 🚼 IBM CR Cleanup Tips (Free Tier Limit)
+## Post-Deployment Validation
+
+After GitHub workflow or manual deployment:
 
 ```bash
-# Delete image by digest
-ibmcloud cr image-rm us.icr.io/quantum1space/quantum1@sha256:<digest>
+kubectl get pods -n <Your IBM Container Registry namespace>
+kubectl get svc -n <Your IBM Container Registry namespace>
+kubectl logs -n <Your IBM Container Registry namespace> <pod-name>
+```
 
-# Check if trash is empty
+Use port-forward to test locally:
+
+```bash
+kubectl port-forward svc/quantum1-service 8000:8000 -n <Your IBM Container Registry namespace>
+```
+
+Visit:
+
+```http
+http://localhost:8000
+```
+
+Make sure your React app and backend API respond correctly.
+
+---
+
+## Common IBM Cloud CLI Commands
+
+```bash
+ibmcloud cr login
+ibmcloud cr namespace-add <Your IBM Container Registry namespace>
+ibmcloud cr image-list
 ibmcloud cr image-digests
+ibmcloud cr image-rm <image@sha256:...>
+ibmcloud cr trash-list
+ibmcloud cr quota
 ```
 
 ---
 
-## ✅ Post-Deployment Validation
-
-```bash
-kubectl get pods -n quantum1space           # Check pod status
-kubectl describe pod <pod> -n quantum1space # See why it's stuck (if any)
-kubectl get svc -n quantum1space            # Check service IP/port
-kubectl logs -n quantum1space <pod>         # View application logs
-kubectl port-forward svc/quantum1-service 8000:8000 -n quantum1space
-```
-
-Visit: [http://localhost:8000](http://localhost:8000) to test app locally.
-
----
-
-## 🎯 Refresh Expired Kubernetes Token (BXNIM0408E Error)
+## Expired Kubernetes Token (BXNIM0408E)
 
 ### Issue:
 
 ```text
 Unable to connect to the server: failed to refresh token: oauth2: cannot fetch token: 400 Bad Request
-Response: {"errorCode":"BXNIM0408E","errorMessage":"Provided refresh token is expired"}
 ```
 
 ### Fix:
 
-1. **Re-authenticate with IBM Cloud**
-
 ```bash
 ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION"
-```
-
-2. **Reconnect to Kubernetes Cluster**
-
-```bash
 ibmcloud ks cluster config --cluster quantum1-cluster
-```
-
-3. **Verify Connection**
-
-```bash
 kubectl get nodes
-kubectl get pods -n quantum1space
+kubectl get pods -n <Your IBM Container Registry namespace>
 ```
 
-### Optional Script (refresh\_k8s\_auth.sh):
+### Optional Script: refresh\_k8s\_auth.sh
 
 ```bash
 #!/bin/bash
-
-# Load from .env.local if needed
 source .env.local
-
-# Re-authenticate
 ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$IBM_CLOUD_REGION"
-
-# Refresh Kube config
 ibmcloud ks cluster config --cluster quantum1-cluster
-
-# Confirm access
 kubectl get nodes
-kubectl get pods -n quantum1space
+kubectl get pods -n <Your IBM Container Registry namespace>
 ```
-
-Make it executable:
 
 ```bash
 chmod +x refresh_k8s_auth.sh
@@ -223,8 +256,12 @@ chmod +x refresh_k8s_auth.sh
 
 ---
 
-## 🌟 Final Recommendation
+## IBM Cloud Support
 
-If outbound network still fails after confirming ACL and NSG rules, escalate to IBM Cloud Support:
+If none of the above resolves your issue, contact IBM Cloud Support with the error logs and detailed configuration.
 
-> "My Kubernetes worker nodes are unable to pull images from external registries (Docker Hub, GCR) despite VPC ACL and NSG allowing outbound HTTPS."
+👉 [IBM Cloud Support Center](https://cloud.ibm.com/unifiedsupport/supportcenter)
+
+---
+
+End of Guide ✅

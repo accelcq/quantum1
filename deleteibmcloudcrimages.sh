@@ -1,4 +1,16 @@
 #!/bin/bash
+# deleteibmcloudcrimages.sh
+# This script deletes all images in a specified IBM Cloud Container Registry namespace.
+# Ensure the script is run with bash
+# Usage: bash deleteibmcloudcrimages.sh
+# Check if the script is run with bash
+if [ -z "$BASH_VERSION" ]; then
+  echo "This script must be run with bash. Please run 'bash deleteibmcloudcrimages.sh'."
+  exit 1
+fi
+# Check if the required environment variables are set
+# Set the namespace and region variables
+# Set the namespace and region variables
 NAMESPACE=quantum1space
 REGION=us.icr.io
 # read .env.local file
