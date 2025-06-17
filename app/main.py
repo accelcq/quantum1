@@ -13,6 +13,7 @@ from pydantic import BaseModel
 import logging
 from typing import Any, List, Dict, Optional
 from datetime import timedelta, datetime, timezone
+from dotenv import load_dotenv  # type: ignore
 import os, requests, json, pickle
 import numpy as np # type: ignore
 import pandas as pd
@@ -25,8 +26,8 @@ from qiskit.circuit import Parameter # type: ignore
 from qiskit_machine_learning.algorithms import VQR # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
-from dotenv import load_dotenv  # type: ignore
 import sys
+from config import load_api_keys
 
 # Qiskit 1.0.0 compatible imports (install with pip if missing):
 # pip install "qiskit==1.0.0" "qiskit-aer==0.13.3" "qiskit-ibm-runtime==0.22.0" "qiskit-machine-learning==0.7.1"
@@ -52,6 +53,9 @@ logging.basicConfig(
 
 def log_step(step: str, detail: str):
     logging.info(f"{step}: {detail}")
+
+# Load API keys from environment variables or GitHub secrets
+FMP_API_KEY, IBM_CLOUD_API_KEY, IBM_QUANTUM_API_TOKEN = load_api_keys()
 
 # FastAPI app to expose logs via Swagger UI
 app = FastAPI()
@@ -191,9 +195,6 @@ def custom_docs():
 # --- new code added for stock prediction ---
 
 # --- Data Fetching ---
-# Load environment variables from .env.local if present
-load_dotenv(dotenv_path=os.path.join(os.getcwd(), '.env.local'), override=True)
-
 # --- Authentication Dependency ---
 def check_ibm_keys(request: Request):
     api_key = request.headers.get("IBM_CLOUD_API_KEY")
@@ -202,15 +203,13 @@ def check_ibm_keys(request: Request):
         raise HTTPException(status_code=401, detail="Invalid IBM Cloud or Quantum API Key")
     return True
 
-FMP_API_KEY: str = os.getenv("FMP_API_KEY", "YOUR_API_KEY")
-log_step("Config", f"FMP_API_KEY set to: {FMP_API_KEY}")
-
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"Fetching stock data for symbol: {symbol}")
-    if not FMP_API_KEY or FMP_API_KEY == "YOUR_API_KEY":
+    if not FMP_API_KEY or FMP_API_KEY == "FMP_API_KEY":
         log_step("DataFetch", "FMP_API_KEY is not set or is invalid.")
-        raise HTTPException(status_code=500, detail="FMP_API_KEY is not set or is invalid.")
-    url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?apikey={FMP_API_KEY}"
+        #raise HTTPException(status_code=500, detail="FMP_API_KEY is not set or is invalid.")
+    url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?apikey={FMP_API_KEY}" #22CeNg7buOXdCS5Veour2wyJD7QnkOKV
+    #url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?apikey=22CeNg7buOXdCS5Veour2wyJD7QnkOKV"
     log_step("DataFetch", f"Requesting URL: {url}")
     r = requests.get(url)
     log_step("DataFetch", f"HTTP status: {r.status_code}")

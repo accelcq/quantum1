@@ -25,6 +25,7 @@ npm-debug.log*
 
 # Environment and secrets
 .env
+.keys
 .env.*
 !.env.example
 .env.local
@@ -40,3 +41,6 @@ htmlcov/
 
 # MyPy
 .mypy_cache/
+
+#logs
+app/logs/*
