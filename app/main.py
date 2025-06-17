@@ -526,26 +526,35 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
     log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
     results = {}
     for symbol in symbols:
-        df = fetch_one_week_data(symbol)
-        if len(df) < 3:
-            log_step("TrainQuantumQNN", f"Not enough data for {symbol}, skipping.")
-            continue
-        x, y, dates = make_features(df, window=2, n_points=7)
-        if len(x) == 0:
-            log_step("TrainQuantumQNN", f"No features for {symbol}, skipping.")
-            continue
-        num_features = x.shape[1]
-        feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
-        ansatz = build_ansatz(num_features, 2)
-        optimizer = ADAM(maxiter=20)
-        service = QiskitRuntimeService(channel="ibm_quantum", token=os.getenv("IBM_QUANTUM_API_TOKEN"))
-        backend = service.backend("ibm_brisbane")
-        vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, backend=backend)
-        vqr.fit(x, y)
-        save_model(vqr, f"{symbol}_quantum_qnn.pkl")
-        save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
-        log_step("TrainQuantumQNN", f"Trained and saved QNN model for {symbol}")
-        results[symbol] = "trained"
+        try:
+            df = fetch_one_week_data(symbol)
+            if len(df) < 3:
+                log_step("TrainQuantumQNN", f"Not enough data for {symbol}, skipping.")
+                results[symbol] = "not enough data"
+                continue
+            x, y, dates = make_features(df, window=2, n_points=7)
+            if len(x) == 0:
+                log_step("TrainQuantumQNN", f"No features for {symbol}, skipping.")
+                results[symbol] = "no features"
+                continue
+            num_features = x.shape[1]
+            feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
+            ansatz = build_ansatz(num_features, 2)
+            optimizer = ADAM(maxiter=20)
+            service = QiskitRuntimeService(channel="ibm_quantum", token=os.getenv("IBM_QUANTUM_API_TOKEN"))
+            backend = service.backend("ibm_brisbane")
+            vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, backend=backend)
+            vqr.fit(x, y)
+            save_model(vqr, f"{symbol}_quantum_qnn.pkl")
+            save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
+            log_step("TrainQuantumQNN", f"Trained and saved QNN model for {symbol}")
+            results[symbol] = "trained"
+        except HTTPException as e:
+            log_step("TrainQuantumQNN", f"HTTPException for {symbol}: {e.detail}")
+            results[symbol] = f"error: {e.detail}"
+        except Exception as e:
+            log_step("TrainQuantumQNN", f"Exception for {symbol}: {str(e)}")
+            results[symbol] = f"error: {str(e)}"
     return results
 
 # --- FastAPI Endpoints for Training ---
