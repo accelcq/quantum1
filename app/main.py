@@ -330,19 +330,18 @@ def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
     return [{str(k): v for k, v in record.items()} for record in records]
 
 @app.post("/predict/classical")
-def api_predict_classical(symbols: List[str], request: Request) -> dict[str, Any]:
+def api_predict_classical(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
     log_step("API", f"POST /predict/classical called for symbols: {symbols}")
     check_ibm_keys(request)
-    results: dict[str, Any] = {}
+    results: dict[str, dict[str, float | list | str]] = {}
     for symbol in symbols:
         log_step("API", f"Processing symbol: {symbol}")
-        # Prefer ANN model/data if available
         ann_model_path = f"{symbol}_classical_ann.pkl"
         ann_data_path = f"{symbol}_ann_train_data.json"
         if os.path.exists(ann_model_path) and os.path.exists(ann_data_path):
             log_step("API", f"Using ANN model/data for {symbol}")
             model = load_model(ann_model_path)
-            data = load_train_data(ann_data_path)
+            data: dict[str, list[float]] = load_train_data(ann_data_path)
             x = np.array(data["x_train"], dtype=np.float64)
             y = np.array(data["y_train"], dtype=np.float64)
             y_pred = model.predict(x)
@@ -357,15 +356,11 @@ def api_predict_classical(symbols: List[str], request: Request) -> dict[str, Any
         else:
             log_step("API", f"ANN model/data not found for {symbol}, using default classical model.")
             df = fetch_stock_data(symbol)
-            from numpy.typing import NDArray
-            x: NDArray[np.float64]
-            y: NDArray[np.float64]
-            dates: list[str]
             x, y, dates = make_features(df)
-            x_train: NDArray[np.float64] = x[:400]
-            x_test: NDArray[np.float64] = x[400:]
-            y_train: NDArray[np.float64] = y[:400]
-            y_test: NDArray[np.float64] = y[400:]
+            x_train = x[:400]
+            x_test = x[400:]
+            y_train = y[:400]
+            y_test = y[400:]
             y_pred, model = classical_predict(x_train, y_train, x_test)
             mse = mean_squared_error(y_test, y_pred)
             results[symbol] = {
@@ -382,19 +377,18 @@ def api_predict_classical(symbols: List[str], request: Request) -> dict[str, Any
     return results
 
 @app.post("/predict/quantum")
-def api_predict_quantum(symbols: List[str], request: Request) -> dict[str, dict[str, Any]]:
+def api_predict_quantum(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
     log_step("API", f"POST /predict/quantum called for symbols: {symbols}")
     check_ibm_keys(request)
-    results: dict[str, dict[str, Any]] = {}
+    results: dict[str, dict[str, float | list | str]] = {}
     for symbol in symbols:
         log_step("API", f"Processing symbol: {symbol}")
-        # Prefer QNN model/data if available
         qnn_model_path = f"{symbol}_quantum_qnn.pkl"
         qnn_data_path = f"{symbol}_qnn_train_data.json"
         if os.path.exists(qnn_model_path) and os.path.exists(qnn_data_path):
             log_step("API", f"Using QNN model/data for {symbol}")
             model = load_model(qnn_model_path)
-            data = load_train_data(qnn_data_path)
+            data: dict[str, list[float]] = load_train_data(qnn_data_path)
             x = np.array(data["x_train"], dtype=np.float64)
             y = np.array(data["y_train"], dtype=np.float64)
             y_pred = model.predict(x)
@@ -409,15 +403,11 @@ def api_predict_quantum(symbols: List[str], request: Request) -> dict[str, dict[
         else:
             log_step("API", f"QNN model/data not found for {symbol}, using default quantum model.")
             df = fetch_stock_data(symbol)
-            x: np.ndarray[Any, np.dtype[np.float64]]
-            y: np.ndarray[Any, np.dtype[np.float64]]
-            dates: list[str]
             x, y, dates = make_features(df)
-            x_train: np.ndarray[Any, np.dtype[np.float64]] = x[:400]
-            x_test: np.ndarray[Any, np.dtype[np.float64]] = x[400:]
-            y_train: np.ndarray[Any, np.dtype[np.float64]] = y[:400]
-            y_test: np.ndarray[Any, np.dtype[np.float64]] = y[400:]
-            y_pred: np.ndarray[Any, np.dtype[np.float64]]
+            x_train = x[:400]
+            x_test = x[400:]
+            y_train = y[:400]
+            y_test = y[400:]
             y_pred, vqr = quantum_predict(x_train, y_train, x_test)
             mse = mean_squared_error(y_test, y_pred)
             results[symbol] = {
@@ -438,7 +428,7 @@ def api_model_data(symbol: str, model_type: str, request: Request) -> dict[str, 
     log_step("API", f"GET /model/data/{symbol}/{model_type} called")
     check_ibm_keys(request)
     if model_type == "ann":
-        data = load_train_data(f"{symbol}_ann_train_data.json")
+        data: dict[str, list[float]] = load_train_data(f"{symbol}_ann_train_data.json")
     elif model_type == "qnn":
         data = load_train_data(f"{symbol}_qnn_train_data.json")
     elif model_type == "classical":
@@ -456,7 +446,7 @@ def api_model_load(symbol: str, model_type: str, request: Request) -> dict[str, 
     check_ibm_keys(request)
     if model_type == "ann":
         model = load_model(f"{symbol}_classical_ann.pkl")
-        data = load_train_data(f"{symbol}_ann_train_data.json")
+        data: dict[str, list[float]] = load_train_data(f"{symbol}_ann_train_data.json")
     elif model_type == "qnn":
         model = load_model(f"{symbol}_quantum_qnn.pkl")
         data = load_train_data(f"{symbol}_qnn_train_data.json")
