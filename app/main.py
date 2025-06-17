@@ -472,12 +472,18 @@ TOP_10_SYMBOLS = [
 # --- Fetch 1 week of historical data for a symbol ---
 def fetch_one_week_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"Fetching 1 week data for {symbol}")
+    if not FMP_API_KEY or FMP_API_KEY == "YOUR_API_KEY":
+        log_step("DataFetch", "FMP_API_KEY is not set or is invalid.")
+        raise HTTPException(status_code=500, detail="FMP_API_KEY is not set or is invalid.")
     url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?timeseries=7&apikey={FMP_API_KEY}"
     r = requests.get(url)
     if r.status_code != 200:
         log_step("DataFetch", f"Failed to fetch 1 week data for {symbol}, status code: {r.status_code}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch 1 week data for {symbol}")
     data = r.json()
+    if 'historical' not in data or not data['historical']:
+        log_step("DataFetch", f"No historical data found for {symbol}")
+        raise HTTPException(status_code=404, detail=f"No historical data found for {symbol}")
     df: pd.DataFrame = pd.json_normalize(data, 'historical', ['symbol'])
     df = df.sort_values('date').reset_index(drop=True)
     log_step("DataFetch", f"1 week DataFrame created for {symbol}, shape: {df.shape}")
@@ -490,20 +496,29 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
     log_step("TrainClassicalANN", f"Training classical ANN for symbols: {symbols}")
     results = {}
     for symbol in symbols:
-        df = fetch_one_week_data(symbol)
-        if len(df) < 3:
-            log_step("TrainClassicalANN", f"Not enough data for {symbol}, skipping.")
-            continue
-        x, y, dates = make_features(df, window=2, n_points=7)
-        if len(x) == 0:
-            log_step("TrainClassicalANN", f"No features for {symbol}, skipping.")
-            continue
-        model = MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=500, random_state=42)
-        model.fit(x, y)
-        save_model(model, f"{symbol}_classical_ann.pkl")
-        save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_ann_train_data.json")
-        log_step("TrainClassicalANN", f"Trained and saved ANN model for {symbol}")
-        results[symbol] = "trained"
+        try:
+            df = fetch_one_week_data(symbol)
+            if len(df) < 3:
+                log_step("TrainClassicalANN", f"Not enough data for {symbol}, skipping.")
+                results[symbol] = "not enough data"
+                continue
+            x, y, dates = make_features(df, window=2, n_points=7)
+            if len(x) == 0:
+                log_step("TrainClassicalANN", f"No features for {symbol}, skipping.")
+                results[symbol] = "no features"
+                continue
+            model = MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=500, random_state=42)
+            model.fit(x, y)
+            save_model(model, f"{symbol}_classical_ann.pkl")
+            save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_ann_train_data.json")
+            log_step("TrainClassicalANN", f"Trained and saved ANN model for {symbol}")
+            results[symbol] = "trained"
+        except HTTPException as e:
+            log_step("TrainClassicalANN", f"HTTPException for {symbol}: {e.detail}")
+            results[symbol] = f"error: {e.detail}"
+        except Exception as e:
+            log_step("TrainClassicalANN", f"Exception for {symbol}: {str(e)}")
+            results[symbol] = f"error: {str(e)}"
     return results
 
 # --- Quantum QNN Training ---
