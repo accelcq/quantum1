@@ -26,6 +26,7 @@ from qiskit_machine_learning.algorithms import VQR # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
 from dotenv import load_dotenv  # type: ignore
+import sys
 
 # Qiskit 1.0.0 compatible imports (install with pip if missing):
 # pip install "qiskit==1.0.0" "qiskit-aer==0.13.3" "qiskit-ibm-runtime==0.22.0" "qiskit-machine-learning==0.7.1"
@@ -35,12 +36,19 @@ from dotenv import load_dotenv  # type: ignore
 # qiskit-ibm-runtime==0.22.0 #0.23.0
 # qiskit-machine-learning==0.7.1 #0.8.2
 
-# Set up logging to a file (simulate IBM Cloud Object Storage)
-log_dir = "/app/logs"
+# Set up logging to both file and console
+log_dir = os.path.join(os.getcwd(), "app", "logs")
 os.makedirs(log_dir, exist_ok=True)  # Ensures the directory exists
 log_filename = os.path.join(log_dir, "execution_log.log")
 
-logging.basicConfig(filename=log_filename, level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(message)s',
+    handlers=[
+        logging.FileHandler(log_filename),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 def log_step(step: str, detail: str):
     logging.info(f"{step}: {detail}")
@@ -199,13 +207,21 @@ log_step("Config", f"FMP_API_KEY set to: {FMP_API_KEY}")
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"Fetching stock data for symbol: {symbol}")
+    if not FMP_API_KEY or FMP_API_KEY == "YOUR_API_KEY":
+        log_step("DataFetch", "FMP_API_KEY is not set or is invalid.")
+        raise HTTPException(status_code=500, detail="FMP_API_KEY is not set or is invalid.")
     url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?apikey={FMP_API_KEY}"
+    log_step("DataFetch", f"Requesting URL: {url}")
     r = requests.get(url)
+    log_step("DataFetch", f"HTTP status: {r.status_code}")
     if r.status_code != 200:
-        log_step("DataFetch", f"Failed to fetch data for {symbol}, status code: {r.status_code}")
+        log_step("DataFetch", f"Failed to fetch data for {symbol}, status code: {r.status_code}, response: {r.text}")
         raise HTTPException(status_code=500, detail="Failed to fetch data")
     data = r.json()
     log_step("DataFetch", f"Data fetched for {symbol}, normalizing JSON")
+    if 'historical' not in data or not data['historical']:
+        log_step("DataFetch", f"No historical data found in response for {symbol}. Response: {data}")
+        raise HTTPException(status_code=404, detail=f"No historical data found for {symbol}")
     df: pd.DataFrame = pd.json_normalize(data, 'historical', ['symbol'])
     df = df.sort_values('date').reset_index(drop=True)
     log_step("DataFetch", f"DataFrame created for {symbol}, shape: {df.shape}")
