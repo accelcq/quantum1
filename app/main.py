@@ -25,6 +25,7 @@ from qiskit.circuit import Parameter # type: ignore
 from qiskit_machine_learning.algorithms import VQR # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
+from dotenv import load_dotenv  # type: ignore
 
 # Qiskit 1.0.0 compatible imports (install with pip if missing):
 # pip install "qiskit==1.0.0" "qiskit-aer==0.13.3" "qiskit-ibm-runtime==0.22.0" "qiskit-machine-learning==0.7.1"
@@ -180,6 +181,11 @@ def custom_docs():
     return {"message": "Custom Swagger UI is not available in this version. Use /docs for the default Swagger UI."}
     
 # --- new code added for stock prediction ---
+
+# --- Data Fetching ---
+# Load environment variables from .env.local if present
+load_dotenv(dotenv_path=os.path.join(os.getcwd(), '.env.local'), override=True)
+
 # --- Authentication Dependency ---
 def check_ibm_keys(request: Request):
     api_key = request.headers.get("IBM_CLOUD_API_KEY")
@@ -188,7 +194,6 @@ def check_ibm_keys(request: Request):
         raise HTTPException(status_code=401, detail="Invalid IBM Cloud or Quantum API Key")
     return True
 
-# --- Data Fetching ---
 FMP_API_KEY: str = os.getenv("FMP_API_KEY", "YOUR_API_KEY")
 log_step("Config", f"FMP_API_KEY set to: {FMP_API_KEY}")
 
