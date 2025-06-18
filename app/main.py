@@ -361,7 +361,7 @@ def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
 def api_predict_classical(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
     log_step("API", f"POST /predict/classical called for symbols: {symbols}")
     check_ibm_keys()
-    results: dict[str, dict[str, float | list | str]] = {}
+    results: dict[str, dict[str, float | list[Any] | str]] = {}
     for symbol in symbols:
         log_step("API", f"Processing symbol: {symbol}")
         ann_model_path = f"{symbol}_classical_ann.pkl"
