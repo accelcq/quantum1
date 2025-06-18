@@ -1,4 +1,4 @@
-"import React, { useState } from "react";
+import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 
