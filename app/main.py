@@ -21,6 +21,7 @@ load_dotenv(dotenv_path=".env.local")
 import numpy as np # type: ignore
 import pandas as pd
 from qiskit import QuantumCircuit # type: ignore
+from qiskit.utils import QuantumInstance  # type: ignore
 from qiskit_ibm_runtime import QiskitRuntimeService # type: ignore
 from qiskit.circuit.library import PauliFeatureMap # type: ignore
 from qiskit_machine_learning.optimizers import ADAM # type: ignore
@@ -329,15 +330,15 @@ def quantum_predict(
     y_train: np.ndarray[Any, Any],
     x_test: np.ndarray[Any, Any],
     backend_name: str = "ibm_brisbane"
-) -> Tuple[np.ndarray, Any]:  # type: ignore
+) -> Tuple[np.ndarray[Any, np.dtype[Any]], Any]:
     log_step("QuantumML", f"Starting quantum prediction on backend {backend_name}")
     num_features = x_train.shape[1]
     feature_map = PauliFeatureMap(feature_dimension=num_features, reps=2)
     ansatz = build_ansatz(num_features, 5)
     optimizer = ADAM(maxiter=100)
-    service = QiskitRuntimeService(channel="ibm_quantum", token=os.getenv("IBM_QUANTUM_API_TOKEN"))
+    service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
     backend = service.backend(backend_name)
-    vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, backend=backend)
+    vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer)
     log_step("QuantumML", "Fitting VQR model")
     vqr.fit(x_train, y_train)
     log_step("QuantumML", "Model fit complete, predicting")
@@ -359,7 +360,7 @@ def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
     return [{str(k): v for k, v in record.items()} for record in records]
 
 @app.post("/predict/classical")
-def api_predict_classical(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
+def api_predict_classical(symbols: List[str], request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:
     log_step("API", f"POST /predict/classical called for symbols: {symbols}")
     check_ibm_keys()
     results: dict[str, dict[str, float | list[Any] | str]] = {}
@@ -551,7 +552,8 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     return results
 
 # --- Quantum QNN Training ---
-def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
+
+def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
     log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
     results = {}
     for symbol in symbols:
@@ -560,19 +562,20 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             if len(df) < 3:
                 log_step("TrainQuantumQNN", f"Not enough data for {symbol}, skipping.")
                 results[symbol] = "not enough data"
-            x, y, _ = make_features(df, window=2, n_points=7)
+                continue
+            x, y, dates = make_features(df, window=2, n_points=7)
             if len(x) == 0:
                 log_step("TrainQuantumQNN", f"No features for {symbol}, skipping.")
                 results[symbol] = "no features"
                 continue
             num_features = x.shape[1]
-            num_features = x.shape[1]
             feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
             ansatz = build_ansatz(num_features, 2)
             optimizer = ADAM(maxiter=20)
-            service = QiskitRuntimeService(channel="ibm_quantum", token=os.getenv("IBM_QUANTUM_API_TOKEN"))
+            service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
             backend = service.backend("ibm_brisbane")
-            vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, backend=backend)
+            quantum_instance = QuantumInstance(backend)
+            vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, quantum_instance=quantum_instance)
             vqr.fit(x, y)
             save_model(vqr, f"{symbol}_quantum_qnn.pkl")
             save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
