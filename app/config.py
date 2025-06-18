@@ -2,11 +2,13 @@
 import os
 from dotenv import load_dotenv
 
-def log_step(category, message):
+def log_step(category: str, message: str) -> None:
     print(f"{category}: {message}")
 
-def validate_env_vars(var_dict):
-    errors = []
+from typing import Dict, List
+
+def validate_env_vars(var_dict: Dict[str, str]) -> None:
+    errors: List[str] = []
     for key, value in var_dict.items():
         if not value:
             errors.append(f"{key} is missing or empty.")
@@ -17,7 +19,9 @@ def validate_env_vars(var_dict):
             print(f"[VALIDATION] {err}")
         raise EnvironmentError("Environment variable validation failed.")
 
-def load_api_keys(dotenv_file: str = None):
+from typing import Optional
+
+def load_api_keys(dotenv_file: Optional[str] = None):
     log_step("Config", "Loading API keys from environment or secrets")
 
     if not dotenv_file:
@@ -35,9 +39,11 @@ def load_api_keys(dotenv_file: str = None):
     print("IBM_QUANTUM_API_TOKEN:", repr(ibm_quantum_api_token))
 
     validate_env_vars({
-        "FMP_API_KEY": fmp_api_key,
-        "IBM_CLOUD_API_KEY": ibm_cloud_api_key,
-        "IBM_QUANTUM_API_TOKEN": ibm_quantum_api_token
+        key: value for key, value in {
+            "FMP_API_KEY": fmp_api_key,
+            "IBM_CLOUD_API_KEY": ibm_cloud_api_key,
+            "IBM_QUANTUM_API_TOKEN": ibm_quantum_api_token
+        }.items() if value is not None
     })
 
     if os.getenv("IBM_CLOUD_ENV") == "true":
