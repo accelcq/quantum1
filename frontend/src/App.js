@@ -1,192 +1,139 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import { motion } from "framer-motion";
+import Image from "next/image";
 
-const API_URL = "http://localhost:8000"; // Change if needed
+const Dashboard = () => {
+  const [token, setToken] = useState("");
+  const [symbol, setSymbol] = useState("AAPL");
+  const [predictionClassical, setPredictionClassical] = useState(null);
+  const [predictionQuantum, setPredictionQuantum] = useState(null);
+  const [chartData, setChartData] = useState([]);
 
-function App() {
-  // State for each API input/output
-  const [loginData, setLoginData] = useState({ username: "", password: "" });
-  const [token, setToken] = useState(null); // token is the whole object from /token
-  const [predictSimSymbol, setPredictSimSymbol] = useState("");
-  const [predictSimResult, setPredictSimResult] = useState(null);
-  const [logs, setLogs] = useState("");
-  const [historicalSymbol, setHistoricalSymbol] = useState("");
-  const [historicalData, setHistoricalData] = useState(null);
-  const [predictClassicalSymbols, setPredictClassicalSymbols] = useState("");
-  const [predictClassicalResult, setPredictClassicalResult] = useState(null);
-  const [predictQuantumSymbols, setPredictQuantumSymbols] = useState("");
-  const [predictQuantumResult, setPredictQuantumResult] = useState(null);
-  const [modelDataSymbol, setModelDataSymbol] = useState("");
-  const [modelDataType, setModelDataType] = useState("");
-  const [modelData, setModelData] = useState(null);
-  const [modelLoadSymbol, setModelLoadSymbol] = useState("");
-  const [modelLoadType, setModelLoadType] = useState("");
-  const [modelLoad, setModelLoad] = useState(null);
-  const [trainClassicalSymbols, setTrainClassicalSymbols] = useState("");
-  const [trainClassicalResult, setTrainClassicalResult] = useState(null);
-  const [trainQuantumSymbols, setTrainQuantumSymbols] = useState("");
-  const [trainQuantumResult, setTrainQuantumResult] = useState(null);
-
-  const getAuthHeader = () =>
-    token && token.access_token
-      ? { Authorization: `Bearer ${token.access_token}` }
-      : {};
-
-  // Helper for POST requests
-  const post = async (endpoint, body, setter) => {
-    try {
-      const res = await fetch(`${API_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeader(),
-        },
-        body: JSON.stringify(body),
-      });
-      setter(await res.json());
-    } catch (e) {
-      setter({ error: e.message });
-    }
+  const handleLogin = async () => {
+    const res = await fetch("/token", { method: "POST" });
+    const data = await res.json();
+    setToken(data.access_token);
   };
 
-  // Helper for GET requests
-  const get = async (endpoint, setter) => {
-    try {
-      const res = await fetch(`${API_URL}${endpoint}`, {
-        headers: {
-          ...getAuthHeader(),
-        },
-      });
-      setter(await res.json());
-    } catch (e) {
-      setter({ error: e.message });
-    }
+  const predictStock = async () => {
+    const headers = { Authorization: `Bearer ${token}` };
+    const resClassical = await fetch(`/predict/classical?symbols=${symbol}`, { headers });
+    const dataClassical = await resClassical.json();
+    setPredictionClassical(dataClassical);
+
+    const resQuantum = await fetch(`/predict/quantum?symbols=${symbol}`, { headers });
+    const dataQuantum = await resQuantum.json();
+    setPredictionQuantum(dataQuantum);
   };
 
-  const login = async () => {
-    const params = new URLSearchParams();
-    params.append("username", loginData.username);
-    params.append("password", loginData.password);
-
-    try {
-      const res = await fetch(`${API_URL}/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: params,
-      });
-      setToken(await res.json());
-    } catch (e) {
-      setToken({ error: e.message });
-    }
+  const fetchChartData = async () => {
+    const res = await fetch(`/historical-data/${symbol}`);
+    const data = await res.json();
+    setChartData(data.map(day => ({ date: day.date, close: day.close })));
   };
+
+  useEffect(() => {
+    fetchChartData();
+  }, [symbol]);
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Quantum1 API Dashboard</h1>
+    <div className="p-4 md:p-10 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen text-white">
+      <div className="flex items-center justify-between mb-6 flex-col md:flex-row gap-4">
+        <Image src="/accelcq-logo.svg" alt="AccelCQ Logo" width={160} height={60} />
+        <h1 className="text-3xl font-bold text-center">Quantum1 API Dashboard</h1>
+      </div>
 
-      {/* POST /token */}
-      <section>
-        <h2>Login (/token)</h2>
-        <input placeholder="Username" value={loginData.username} onChange={e => setLoginData({ ...loginData, username: e.target.value })} />
-        <input placeholder="Password" type="password" value={loginData.password} onChange={e => setLoginData({ ...loginData, password: e.target.value })} />
-        <button onClick={login}>Login</button>
-        <pre>{JSON.stringify(token, null, 2)}</pre>
-      </section>
+      <motion.div className="grid md:grid-cols-2 gap-6 mb-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
+        <Card className="bg-slate-700 shadow-xl rounded-2xl">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Login</h2>
+            <Button onClick={handleLogin} className="w-full">Login</Button>
+            <p className="mt-2 text-sm break-all">Token: {token ? `${token.slice(0, 20)}...` : "Not logged in"}</p>
+          </CardContent>
+        </Card>
 
-      {/* POST /predict-stock-simulator */}
-      <section>
-        <h2>Predict Stock Simulator (/predict-stock-simulator)</h2>
-        <input placeholder="Stock Symbol" value={predictSimSymbol} onChange={e => setPredictSimSymbol(e.target.value)} />
-        <button onClick={() => post("/predict-stock-simulator", { symbol: predictSimSymbol }, setPredictSimResult)}>Predict</button>
-        <pre>{JSON.stringify(predictSimResult, null, 2)}</pre>
-      </section>
+        <Card className="bg-slate-700 shadow-xl rounded-2xl">
+          <CardContent className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Stock Prediction</h2>
+            <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="Enter stock symbol" className="mb-2" />
+            <Button onClick={predictStock} className="w-full">Predict</Button>
+          </CardContent>
+        </Card>
+      </motion.div>
 
-      {/* GET /logs */}
-      <section>
-        <h2>Get Logs (/logs)</h2>
-        <button onClick={() => get("/logs", setLogs)}>Get Logs</button>
-        <pre>{JSON.stringify(logs, null, 2)}</pre>
-      </section>
+      <motion.div className="grid md:grid-cols-2 gap-6 mb-6" initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 1 }}>
+        {predictionClassical && (
+          <Card className="bg-slate-800 shadow-xl rounded-2xl">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-2">Classical Prediction: {symbol}</h2>
+              <p className="mb-2">Prediction: <strong>{predictionClassical.prediction}</strong></p>
+              <p>Confidence - Up: {predictionClassical.counts?.[1]}%, Down: {predictionClassical.counts?.[0]}%</p>
+            </CardContent>
+          </Card>
+        )}
 
-      {/* GET / */}
-      <section>
-        <h2>Root (/)</h2>
-        <button onClick={() => get("/", setLogs)}>Call Root</button>
-        <pre>{JSON.stringify(logs, null, 2)}</pre>
-      </section>
+        {predictionQuantum && (
+          <Card className="bg-slate-800 shadow-xl rounded-2xl">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-2">Quantum Prediction: {symbol}</h2>
+              <p className="mb-2">Prediction: <strong>{predictionQuantum.prediction}</strong></p>
+              <p>Confidence - Up: {predictionQuantum.counts?.[1]}%, Down: {predictionQuantum.counts?.[0]}%</p>
+            </CardContent>
+          </Card>
+        )}
+      </motion.div>
 
-      {/* GET /health */}
-      <section>
-        <h2>Health Check (/health)</h2>
-        <button onClick={() => get("/health", setLogs)}>Check Health</button>
-        <pre>{JSON.stringify(logs, null, 2)}</pre>
-      </section>
-
-      {/* GET /version */}
-      <section>
-        <h2>Version (/version)</h2>
-        <button onClick={() => get("/version", setLogs)}>Get Version</button>
-        <pre>{JSON.stringify(logs, null, 2)}</pre>
-      </section>
-
-      {/* GET /historical-data/{symbol} */}
-      <section>
-        <h2>Api Historical Data (/historical-data/&lt;symbol&gt;)</h2>
-        <input placeholder="Stock Symbol" value={historicalSymbol} onChange={e => setHistoricalSymbol(e.target.value)} />
-        <button onClick={() => get(`/historical-data/${historicalSymbol}`, setHistoricalData)}>Get Data</button>
-        <pre>{JSON.stringify(historicalData, null, 2)}</pre>
-      </section>
-
-      {/* POST /predict/classical */}
-      <section>
-        <h2>Api Predict Classical (/predict/classical)</h2>
-        <input placeholder="Comma-separated symbols" value={predictClassicalSymbols} onChange={e => setPredictClassicalSymbols(e.target.value)} />
-        <button onClick={() => post("/predict/classical", predictClassicalSymbols.split(",").map(s => s.trim()), setPredictClassicalResult)}>Predict</button>
-        <pre>{JSON.stringify(predictClassicalResult, null, 2)}</pre>
-      </section>
-
-      {/* POST /predict/quantum */}
-      <section>
-        <h2>Api Predict Quantum (/predict/quantum)</h2>
-        <input placeholder="Comma-separated symbols" value={predictQuantumSymbols} onChange={e => setPredictQuantumSymbols(e.target.value)} />
-        <button onClick={() => post("/predict/quantum", predictQuantumSymbols.split(",").map(s => s.trim()), setPredictQuantumResult)}>Predict</button>
-        <pre>{JSON.stringify(predictQuantumResult, null, 2)}</pre>
-      </section>
-
-      {/* GET /model/data/{symbol}/{model_type} */}
-      <section>
-        <h2>Api Model Data (/model/data/&lt;symbol&gt;/&lt;model_type&gt;)</h2>
-        <input placeholder="Symbol" value={modelDataSymbol} onChange={e => setModelDataSymbol(e.target.value)} />
-        <input placeholder="Model Type (ann/qnn/classical/quantum)" value={modelDataType} onChange={e => setModelDataType(e.target.value)} />
-        <button onClick={() => get(`/model/data/${modelDataSymbol}/${modelDataType}`, setModelData)}>Get Model Data</button>
-        <pre>{JSON.stringify(modelData, null, 2)}</pre>
-      </section>
-
-      {/* GET /model/load/{symbol}/{model_type} */}
-      <section>
-        <h2>Api Model Load (/model/load/&lt;symbol&gt;/&lt;model_type&gt;)</h2>
-        <input placeholder="Symbol" value={modelLoadSymbol} onChange={e => setModelLoadSymbol(e.target.value)} />
-        <input placeholder="Model Type (ann/qnn/classical/quantum)" value={modelLoadType} onChange={e => setModelLoadType(e.target.value)} />
-        <button onClick={() => get(`/model/load/${modelLoadSymbol}/${modelLoadType}`, setModelLoad)}>Load Model</button>
-        <pre>{JSON.stringify(modelLoad, null, 2)}</pre>
-      </section>
-
-      {/* POST /train/classical */}
-      <section>
-        <h2>Api Train Classical (/train/classical)</h2>
-        <input placeholder="Comma-separated symbols" value={trainClassicalSymbols} onChange={e => setTrainClassicalSymbols(e.target.value)} />
-        <button onClick={() => post("/train/classical", trainClassicalSymbols.split(",").map(s => s.trim()), setTrainClassicalResult)}>Train</button>
-        <pre>{JSON.stringify(trainClassicalResult, null, 2)}</pre>
-      </section>
-
-      {/* POST /train/quantum */}
-      <section>
-        <h2>Api Train Quantum (/train/quantum)</h2>
-        <input placeholder="Comma-separated symbols" value={trainQuantumSymbols} onChange={e => setTrainQuantumSymbols(e.target.value)} />
-        <button onClick={() => post("/train/quantum", trainQuantumSymbols.split(",").map(s => s.trim()), setTrainQuantumResult)}>Train</button>
-        <pre>{JSON.stringify(trainQuantumResult, null, 2)}</pre>
-      </section>
+      <motion.div className="bg-slate-700 rounded-2xl shadow-2xl p-6" initial={{ scale: 0.95 }} animate={{ scale: 1 }} transition={{ duration: 1 }}>
+        <h2 className="text-xl font-semibold mb-4">Historical Stock Data Chart: {symbol}</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={chartData}>
+            <XAxis dataKey="date" hide />
+            <YAxis domain={['dataMin', 'dataMax']} />
+            <Tooltip />
+            <CartesianGrid strokeDasharray="3 3" />
+            <Line type="monotone" dataKey="close" stroke="#4ade80" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </motion.div>
     </div>
   );
-}
+};
 
-export default App;
+export default Dashboard;
+//         <input placeholder="Stock Symbol" value={predictClassicalSymbol} onChange={e => setPredictClassicalSymbol(e.target.value)} />
+//         <button onClick={() => post("/predict/classical", { symbols: predictClassicalSymbol }, setPredictionClassical)}>Predict Classical</button>
+//         <input placeholder="Stock Symbol" value={predictQuantumSymbol} onChange={e => setPredictQuantumSymbol(e.target.value)} />
+//         <button onClick={() => post("/predict/quantum", { symbols: predictQuantumSymbol }, setPredictionQuantum)}>Predict Quantum</button>
+//         <h2>Classical Prediction: {predictionClassical?.prediction}</h2>
+//         <h2>Quantum Prediction: {predictionQuantum?.prediction}</h2>
+//         <h2>Historical Data for {historicalSymbol}</h2>
+//         <input placeholder="Stock Symbol" value={historicalSymbol} onChange={e => setHistoricalSymbol(e.target.value)} />
+//         <button onClick={() => get(`/historical-data/${historicalSymbol}`, setHistoricalData)}>Fetch Historical Data</button>
+//         <pre>{JSON.stringify(historicalData, null, 2)}</pre>
+//         <h2>Historical Data Chart for {historicalSymbol}</h2>
+//         <ResponsiveContainer width="100%" height={300}>  
+//           <LineChart data={historicalData}>
+//             <XAxis dataKey="date" />
+//             <YAxis />
+//             <Tooltip />
+//             <CartesianGrid stroke="#f5f5f5" />
+//             <Line type="monotone" dataKey="close" stroke="#ff7300" yAxisId={0} />
+//           </LineChart>
+//         </ResponsiveContainer>
+//       </div>
+//     </div>
+//   );
+// };
+// export default App;
+// import React, { useState } from "react";
+// import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
+//   ResponsiveContainer } from "recharts";
+// import { motion } from "framer-motion";  
+// import Image from "next/image";
+// import { Card, CardContent } from "@/components/ui/card";
+// import { Button } from "@/components/ui/button";
+// import { Input } from "@/components/ui/input";                                                                       
