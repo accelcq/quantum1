@@ -45,3 +45,22 @@ htmlcov/
 
 #logs
 app/logs/*
+
+#trainin-models
+AAPL*
+MSFT*
+GOOGL*
+AMZN*
+META*
+TSLA*
+NFLX*
+NVDA*
+BABA*
+JPM*
+V*
+W*
+DIS*
+PYPL*
+ADBE*
+UNH*
+CRM*
