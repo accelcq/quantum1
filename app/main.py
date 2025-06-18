@@ -15,6 +15,9 @@ from typing import Any, List, Dict, Optional
 from datetime import timedelta, datetime, timezone
 from dotenv import load_dotenv  # type: ignore
 import os, requests, json, pickle
+
+# Load environment variables from .env.local
+load_dotenv(dotenv_path=".env.local")
 import numpy as np # type: ignore
 import pandas as pd
 from qiskit import QuantumCircuit # type: ignore
@@ -27,7 +30,7 @@ from qiskit_machine_learning.algorithms import VQR # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
 import sys
-from config import load_api_keys
+from .config import load_api_keys
 
 # Qiskit 1.0.0 compatible imports (install with pip if missing):
 # pip install "qiskit==1.0.0" "qiskit-aer==0.13.3" "qiskit-ibm-runtime==0.22.0" "qiskit-machine-learning==0.7.1"
@@ -196,12 +199,17 @@ def custom_docs():
 
 # --- Data Fetching ---
 # --- Authentication Dependency ---
-def check_ibm_keys(request: Request):
-    api_key = request.headers.get("IBM_CLOUD_API_KEY")
-    quantum_token = request.headers.get("IBM_QUANTUM_API_TOKEN")
-    if api_key != os.getenv("IBM_CLOUD_API_KEY") or quantum_token != os.getenv("IBM_QUANTUM_API_TOKEN"):
+def check_ibm_keys():
+    if not IBM_CLOUD_API_KEY:
+        log_step("APIKeyCheck", "IBM_CLOUD_API_KEY is empty or not set.")
+    if not IBM_QUANTUM_API_TOKEN:
+        log_step("APIKeyCheck", "IBM_QUANTUM_API_TOKEN is empty or not set.")
+    if not IBM_CLOUD_API_KEY or not IBM_QUANTUM_API_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid IBM Cloud or Quantum API Key")
-    return True
+    
+    if not FMP_API_KEY or FMP_API_KEY == "FMP_API_KEY":
+        log_step("APIKeyCheck", "FMP_API_KEY is empty, invalid, or not set.")
+        raise HTTPException(status_code=401, detail="Invalid Financial Modeling Prep API Key")
 
 def fetch_stock_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"Fetching stock data for symbol: {symbol}")
@@ -343,7 +351,7 @@ from typing import List, Dict, Any
 @app.get("/historical-data/{symbol}")
 def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
     log_step("API", f"GET /historical-data/{symbol} called")
-    check_ibm_keys(request)
+    check_ibm_keys()
     df = fetch_stock_data(symbol)
     log_step("API", f"Returning historical data for {symbol}")
     records = df.to_dict(orient="records")
@@ -352,7 +360,7 @@ def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
 @app.post("/predict/classical")
 def api_predict_classical(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
     log_step("API", f"POST /predict/classical called for symbols: {symbols}")
-    check_ibm_keys(request)
+    check_ibm_keys()
     results: dict[str, dict[str, float | list | str]] = {}
     for symbol in symbols:
         log_step("API", f"Processing symbol: {symbol}")
