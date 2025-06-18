@@ -1,40 +1,52 @@
-import React, { useState, useEffect } from "react";
+""import React, { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 
+const API_URL = "http://localhost:8000";
+
 const Dashboard = () => {
   const [token, setToken] = useState("");
+  const [login, setLogin] = useState({ username: "", password: "" });
   const [symbol, setSymbol] = useState("AAPL");
-  const [predictionClassical, setPredictionClassical] = useState(null);
-  const [predictionQuantum, setPredictionQuantum] = useState(null);
   const [chartData, setChartData] = useState([]);
+  const [responses, setResponses] = useState({});
+
+  const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
   const handleLogin = async () => {
-    const res = await fetch("/token", { method: "POST" });
+    const formData = new URLSearchParams();
+    formData.append("username", login.username);
+    formData.append("password", login.password);
+    const res = await fetch(`${API_URL}/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: formData
+    });
     const data = await res.json();
     setToken(data.access_token);
   };
 
-  const predictStock = async () => {
-    const headers = { Authorization: `Bearer ${token}` };
-    const resClassical = await fetch(`/predict/classical?symbols=${symbol}`, { headers });
-    const dataClassical = await resClassical.json();
-    setPredictionClassical(dataClassical);
-
-    const resQuantum = await fetch(`/predict/quantum?symbols=${symbol}`, { headers });
-    const dataQuantum = await resQuantum.json();
-    setPredictionQuantum(dataQuantum);
+  const callAPI = async (method, url, body) => {
+    const config = {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader
+      },
+    };
+    if (body) config.body = JSON.stringify(body);
+    const res = await fetch(`${API_URL}${url}`, config);
+    const data = await res.json();
+    setResponses(prev => ({ ...prev, [url]: data }));
+    return data;
   };
 
   const fetchChartData = async () => {
-    const res = await fetch(`/historical-data/${symbol}`);
+    const res = await fetch(`${API_URL}/historical-data/${symbol}`);
     const data = await res.json();
     setChartData(data.map(day => ({ date: day.date, close: day.close })));
+    setResponses(prev => ({ ...prev, ["/historical"]: data }));
   };
-
-  useEffect(() => {
-    fetchChartData();
-  }, [symbol]);
 
   return (
     <div className="p-4 md:p-10 bg-gradient-to-br from-slate-900 to-slate-800 min-h-screen text-white">
@@ -43,41 +55,21 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold text-center">Quantum1 API Dashboard</h1>
       </div>
 
-      <motion.div className="grid md:grid-cols-2 gap-6 mb-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }}>
-        <div className="bg-slate-700 shadow-xl rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Login</h2>
-          <button onClick={handleLogin} className="w-full bg-green-600 py-2 rounded-lg">Login</button>
-          <p className="mt-2 text-sm break-all">Token: {token ? `${token.slice(0, 20)}...` : "Not logged in"}</p>
-        </div>
-
-        <div className="bg-slate-700 shadow-xl rounded-2xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Stock Prediction</h2>
-          <input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="Enter stock symbol" className="w-full px-4 py-2 mb-2 rounded-lg text-black" />
-          <button onClick={predictStock} className="w-full bg-blue-600 py-2 rounded-lg">Predict</button>
-        </div>
+      {/* Login */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">1. Login</h2>
+        <input className="w-full px-4 py-2 mb-2 rounded-lg text-black" placeholder="Username" onChange={e => setLogin({ ...login, username: e.target.value })} />
+        <input className="w-full px-4 py-2 mb-2 rounded-lg text-black" type="password" placeholder="Password" onChange={e => setLogin({ ...login, password: e.target.value })} />
+        <button onClick={handleLogin} className="w-full bg-green-600 py-2 rounded-lg">Login</button>
+        <p className="mt-2 text-sm break-all">Token: {token ? `${token.slice(0, 20)}...` : "Not logged in"}</p>
       </motion.div>
 
-      <motion.div className="grid md:grid-cols-2 gap-6 mb-6" initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 1 }}>
-        {predictionClassical && (
-          <div className="bg-slate-800 shadow-xl rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-2">Classical Prediction: {symbol}</h2>
-            <p className="mb-2">Prediction: <strong>{predictionClassical.prediction}</strong></p>
-            <p>Confidence - Up: {predictionClassical.counts?.[1]}%, Down: {predictionClassical.counts?.[0]}%</p>
-          </div>
-        )}
-
-        {predictionQuantum && (
-          <div className="bg-slate-800 shadow-xl rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-2">Quantum Prediction: {symbol}</h2>
-            <p className="mb-2">Prediction: <strong>{predictionQuantum.prediction}</strong></p>
-            <p>Confidence - Up: {predictionQuantum.counts?.[1]}%, Down: {predictionQuantum.counts?.[0]}%</p>
-          </div>
-        )}
-      </motion.div>
-
-      <motion.div className="bg-slate-700 rounded-2xl shadow-2xl p-6" initial={{ scale: 0.95 }} animate={{ scale: 1 }} transition={{ duration: 1 }}>
-        <h2 className="text-xl font-semibold mb-4">Historical Stock Data Chart: {symbol}</h2>
-        <ResponsiveContainer width="100%" height={300}>
+      {/* Historical Data */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">2. Historical Data</h2>
+        <input className="w-full px-4 py-2 mb-2 rounded-lg text-black" placeholder="Stock Symbol" value={symbol} onChange={e => setSymbol(e.target.value)} />
+        <button onClick={fetchChartData} className="w-full bg-blue-600 py-2 rounded-lg">Fetch</button>
+        <ResponsiveContainer width="100%" height={300} className="mt-4">
           <LineChart data={chartData}>
             <XAxis dataKey="date" hide />
             <YAxis domain={['dataMin', 'dataMax']} />
@@ -86,6 +78,34 @@ const Dashboard = () => {
             <Line type="monotone" dataKey="close" stroke="#4ade80" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
+      </motion.div>
+
+      {/* Classical Train */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">3. Train Classical Model</h2>
+        <button onClick={() => callAPI("POST", "/train/classical", [symbol])} className="w-full bg-indigo-600 py-2 rounded-lg">Train</button>
+        <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/train/classical"], null, 2)}</pre>
+      </motion.div>
+
+      {/* Quantum Train */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">4. Train Quantum Model</h2>
+        <button onClick={() => callAPI("POST", "/train/quantum", [symbol])} className="w-full bg-indigo-600 py-2 rounded-lg">Train</button>
+        <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/train/quantum"], null, 2)}</pre>
+      </motion.div>
+
+      {/* Predict QNN */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">5. Predict using QNN</h2>
+        <button onClick={() => callAPI("POST", "/predict/quantum", [symbol])} className="w-full bg-teal-600 py-2 rounded-lg">Predict</button>
+        <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/quantum"], null, 2)}</pre>
+      </motion.div>
+
+      {/* Predict ANN */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">6. Predict using ANN</h2>
+        <button onClick={() => callAPI("POST", "/predict/classical", [symbol])} className="w-full bg-teal-600 py-2 rounded-lg">Predict</button>
+        <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/classical"], null, 2)}</pre>
       </motion.div>
     </div>
   );
