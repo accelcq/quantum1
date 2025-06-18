@@ -251,13 +251,13 @@ def load_model(path: str = MODEL_PATH) -> Any:
     log_step("ModelLoad", f"Model loaded from {path}")
     return model
 
-def save_train_data(data: dict, path: str = DATA_PATH) -> None:
+def save_train_data(data: dict[str, Any], path: str = DATA_PATH) -> None:
     log_step("DataSave", f"Saving training data to {path}")
     with open(path, "w") as f:
         json.dump(data, f)
     log_step("DataSave", f"Training data saved to {path}")
 
-def load_train_data(path: str = DATA_PATH) -> dict:
+def load_train_data(path: str = DATA_PATH) -> dict[str, Any]:
     log_step("DataLoad", f"Loading training data from {path}")
     with open(path, "r") as f:
         data = json.load(f)
@@ -266,13 +266,14 @@ def load_train_data(path: str = DATA_PATH) -> dict:
 
 # --- Feature Engineering ---
 from typing import Tuple, Any
+from numpy.typing import NDArray
 
-def make_features( # type: ignore
+def make_features(
     df: pd.DataFrame,
     window: int = 2,
     col: str = 'open',
     n_points: int = 500
-) -> Tuple[np.ndarray, np.ndarray, list[str]]:
+) -> Tuple[NDArray[np.float64], NDArray[np.float64], list[str]]:
     log_step("FeatureEngineering", f"Creating features with window={window}, col={col}, n_points={n_points}")
     final_data: pd.DataFrame = df[[col, 'date']][:n_points]
     input_sequences: list[list[float]] = []
@@ -285,7 +286,7 @@ def make_features( # type: ignore
     return (
         np.array(input_sequences, dtype=np.float64),
         np.array(labels, dtype=np.float64),
-        list(final_data['date'].iloc[window:].astype(str))
+        final_data['date'].iloc[window:].astype(str).tolist()
     )
 
 # --- Classical ML ---
@@ -407,8 +408,8 @@ def api_predict_classical(symbols: list[str], request: Request) -> dict[str, dic
 @app.post("/predict/quantum")
 def api_predict_quantum(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
     log_step("API", f"POST /predict/quantum called for symbols: {symbols}")
-    check_ibm_keys(request)
-    results: dict[str, dict[str, float | list | str]] = {}
+    check_ibm_keys()
+    results: dict[str, dict[str, float | list[Any] | str]] = {}
     for symbol in symbols:
         log_step("API", f"Processing symbol: {symbol}")
         qnn_model_path = f"{symbol}_quantum_qnn.pkl"
@@ -454,7 +455,7 @@ def api_predict_quantum(symbols: list[str], request: Request) -> dict[str, dict[
 @app.get("/model/data/{symbol}/{model_type}")
 def api_model_data(symbol: str, model_type: str, request: Request) -> dict[str, list[float]]:
     log_step("API", f"GET /model/data/{symbol}/{model_type} called")
-    check_ibm_keys(request)
+    check_ibm_keys()
     if model_type == "ann":
         data: dict[str, list[float]] = load_train_data(f"{symbol}_ann_train_data.json")
     elif model_type == "qnn":
@@ -471,7 +472,7 @@ def api_model_data(symbol: str, model_type: str, request: Request) -> dict[str, 
 @app.get("/model/load/{symbol}/{model_type}")
 def api_model_load(symbol: str, model_type: str, request: Request) -> dict[str, list[float]]:
     log_step("API", f"GET /model/load/{symbol}/{model_type} called")
-    check_ibm_keys(request)
+    check_ibm_keys()
     if model_type == "ann":
         model = load_model(f"{symbol}_classical_ann.pkl")
         data: dict[str, list[float]] = load_train_data(f"{symbol}_ann_train_data.json")
@@ -520,7 +521,7 @@ def fetch_one_week_data(symbol: str) -> pd.DataFrame:
 # --- Classical ANN Training ---
 from sklearn.neural_network import MLPRegressor # type: ignore
 
-def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
+def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     log_step("TrainClassicalANN", f"Training classical ANN for symbols: {symbols}")
     results = {}
     for symbol in symbols:
@@ -529,12 +530,12 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
             if len(df) < 3:
                 log_step("TrainClassicalANN", f"Not enough data for {symbol}, skipping.")
                 results[symbol] = "not enough data"
-                continue
-            x, y, dates = make_features(df, window=2, n_points=7)
+            x, y, _ = make_features(df, window=2, n_points=7)
             if len(x) == 0:
                 log_step("TrainClassicalANN", f"No features for {symbol}, skipping.")
                 results[symbol] = "no features"
                 continue
+            model = MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=500, random_state=42)
             model = MLPRegressor(hidden_layer_sizes=(16, 8), max_iter=500, random_state=42)
             model.fit(x, y)
             save_model(model, f"{symbol}_classical_ann.pkl")
@@ -550,7 +551,7 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
     return results
 
 # --- Quantum QNN Training ---
-def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
+def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
     results = {}
     for symbol in symbols:
@@ -559,12 +560,12 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
             if len(df) < 3:
                 log_step("TrainQuantumQNN", f"Not enough data for {symbol}, skipping.")
                 results[symbol] = "not enough data"
-                continue
-            x, y, dates = make_features(df, window=2, n_points=7)
+            x, y, _ = make_features(df, window=2, n_points=7)
             if len(x) == 0:
                 log_step("TrainQuantumQNN", f"No features for {symbol}, skipping.")
                 results[symbol] = "no features"
                 continue
+            num_features = x.shape[1]
             num_features = x.shape[1]
             feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
             ansatz = build_ansatz(num_features, 2)
@@ -587,16 +588,16 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
 
 # --- FastAPI Endpoints for Training ---
 @app.post("/train/classical")
-def api_train_classical(request: Request) -> dict:
-    check_ibm_keys(request)
+def api_train_classical(_request: Request) -> dict[str, object]:
+    check_ibm_keys()
     log_step("API", "/train/classical called")
     result = train_classical_ann()
     log_step("API", "Classical ANN training complete")
     return {"status": "success", "trained": result}
 
 @app.post("/train/quantum")
-def api_train_quantum(request: Request) -> dict:
-    check_ibm_keys(request)
+def api_train_quantum(_request: Request) -> dict[str, object]:
+    check_ibm_keys()
     log_step("API", "/train/quantum called")
     result = train_quantum_qnn()
     log_step("API", "Quantum QNN training complete")

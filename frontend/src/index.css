@@ -2,3 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom styles can be added below */
+body { 
+    background-color: #f3f4f6; /* Tailwind bg-gray-100 */
+    color: #111827;           /* Tailwind text-gray-900 */
+}
+h1, h2, h3, h4, h5, h6 {
+    font-weight: bold;        /* Tailwind font-bold */
+}
+a {
+    color: #f6f7f9;           /* Tailwind text-blue-500 */
+    transition: color 0.2s;
+}
+a:hover {
+    color: #c6cbd6;           /* Tailwind text-blue-700 */
+}
+button {
+    background-color: #b1b4b8; /* Tailwind bg-blue-500 */
+    color: #fff;               /* Tailwind text-white */
+    padding-left: 1rem;        /* Tailwind px-4 */
+    padding-right: 1rem;       /* Tailwind px-4 */
+    padding-top: 0.5rem;       /* Tailwind py-2 */
+    padding-bottom: 0.5rem;    /* Tailwind py-2 */
+    border-radius: 0.25rem;    /* Tailwind rounded */
+    transition: background-color 0.2s;
+}
+button:hover {
+    background-color: #b2b4ba; /* Tailwind hover:bg-blue-700 */
+}
+input, textarea {
+    border: 1px solid #d1d5db; /* Tailwind border-gray-300 */
+    padding: 0.5rem;            /* Tailwind p-2 */
+    border-radius: 0.25rem;     /* Tailwind rounded */
+    transition: border-color 0.2s;
+}
+input:focus, textarea:focus {
+    border-color: #3b82f6;      /* Tailwind focus:border-blue-500 */
+    outline: none;              /* Tailwind focus:outline-none */
+}
+/* Add more custom styles as needed */
