@@ -1,17 +1,5 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import App from "./App2"; // old version
-import Dashboard from "./Dashboard"; // new version
-import "./index.css";
-
-const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/API-Reference" element={<App />} />
-import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import App from "./App2"; // API Reference Console
 import Dashboard from "./Dashboard"; // Quantum1 Dashboard
@@ -77,13 +65,6 @@ root.render(
         <Route path="/Dashboard" element={<Dashboard />} />
         <Route path="/API-Reference" element={<App />} />
         <Route path="*" element={<Intro />} />
-      </Routes>
-    </BrowserRouter>
-  </React.StrictMode>
-);
- element={<App />} />
-        <Route path="/Dashboard" element={<Dashboard />} />
-        <Route path="*" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
