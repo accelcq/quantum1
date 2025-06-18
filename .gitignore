@@ -16,6 +16,7 @@ venv/
 # Node.js dependencies in frontend
 frontend/node_modules/
 frontend/package-lock.json
+frontend/build
 
 # Node.js dependencies and files at root
 node_modules/
