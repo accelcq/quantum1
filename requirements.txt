@@ -8,6 +8,7 @@ uvicorn>=0.17.0 # ASGI server for FastAPI
 pydantic>=1.8.0 # For data validation and settings management
 python-jose >=3.3.0 # For JWT handling
 passlib[bcrypt] # For password hashing
+scipy>=1.7.0  # For classical optimization in custom training loop
 # Additional dependencies for testing and development
 pytest>=6.2.0 # For running tests
 pytest-asyncio>=0.15.1

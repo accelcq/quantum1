@@ -27,6 +27,8 @@ from qiskit_machine_learning.optimizers import ADAM # type: ignore
 from qiskit_aer import Aer  # type: ignore
 from qiskit.circuit import Parameter # type: ignore
 from qiskit_machine_learning.algorithms import VQR # type: ignore
+from qiskit.circuit import ParameterVector  # type: ignore
+from qiskit_ibm_runtime import Estimator  # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
 import sys
@@ -332,11 +334,15 @@ def quantum_predict(
 ) -> Tuple[np.ndarray[Any, np.dtype[Any]], Any]:
     log_step("QuantumML", f"Starting quantum prediction on backend {backend_name}")
     num_features = x_train.shape[1]
-    feature_map = PauliFeatureMap(feature_dimension=num_features, reps=2)
-    ansatz = build_ansatz(num_features, 5)
+    feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
+    ansatz = QuantumCircuit(num_features)
+    params = ParameterVector('theta', length=num_features)
+    for i in range(num_features):
+        ansatz.ry(params[i], i)
     optimizer = ADAM(maxiter=100)
     service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-    backend = service.backend(backend_name)
+    backend = service.backend("ibm_brisbane")
+    estimator = Estimator(backend=backend)
     vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer)
     log_step("QuantumML", "Fitting VQR model")
     vqr.fit(x_train, y_train)
@@ -551,6 +557,10 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     return results
 
 # --- Quantum QNN Training ---
+try:
+    from qiskit.utils import QuantumInstance
+except ImportError:
+    from qiskit.utils.quantum_instance import QuantumInstance
 
 def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
     log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
@@ -569,10 +579,14 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
                 continue
             num_features = x.shape[1]
             feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
-            ansatz = build_ansatz(num_features, 2)
+            ansatz = QuantumCircuit(num_features)
+            params = ParameterVector('theta', length=num_features)
+            for i in range(num_features):
+                ansatz.ry(params[i], i)
             optimizer = ADAM(maxiter=20)
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
             backend = service.backend("ibm_brisbane")
+            estimator = Estimator(backend=backend)
             quantum_instance = QuantumInstance(backend)
             vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, quantum_instance=quantum_instance)
             vqr.fit(x, y)
@@ -617,3 +631,41 @@ def ensure_quantum_qnn(symbol: str):
     if not os.path.exists(model_path):
         log_step("AutoTrain", f"Quantum QNN model missing for {symbol}, training now.")
         train_quantum_qnn([symbol])
+
+from scipy.optimize import minimize
+
+def objective(theta, x, y):
+    # Build circuit for each input
+    values = []
+    for xi in x:
+        qc = QuantumCircuit(num_features)
+        # Encode features
+        feature_circ = feature_map.assign_parameters(xi)
+        qc.compose(feature_circ, inplace=True)
+        # Add ansatz
+        ansatz_circ = ansatz.assign_parameters(theta)
+        qc.compose(ansatz_circ, inplace=True)
+        # Measure expectation value of Z on first qubit
+        op = [("Z", [0])]
+        value = estimator.run(qc, observables=op).result().values[0]
+        values.append(value)
+    # Mean squared error
+    return np.mean((np.array(values) - y) ** 2)
+
+theta0 = np.random.rand(num_features)
+res = minimize(objective, theta0, args=(x_train, y_train), method='COBYLA')
+
+def predict(theta, x):
+    preds = []
+    for xi in x:
+        qc = QuantumCircuit(num_features)
+        feature_circ = feature_map.assign_parameters(xi)
+        qc.compose(feature_circ, inplace=True)
+        ansatz_circ = ansatz.assign_parameters(theta)
+        qc.compose(ansatz_circ, inplace=True)
+        op = [("Z", [0])]
+        value = estimator.run(qc, observables=op).result().values[0]
+        preds.append(value)
+    return np.array(preds)
+
+y_pred = predict(res.x, x_test)
