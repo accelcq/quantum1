@@ -27,3 +27,20 @@ typing-extensions>=3.10.0 # For type hinting support
 python-multipart # For handling file uploads
 bcrypt # For password hashing
 jq # For JSON processing
+
+# frontend
+#(qiskit_100_py311) PS C:\Users\RanjanKumar\Projects\Qiskit\qiskit_100_py311\frontend> npm install recharts framer-motion
+
+# for frontend react
+#1. Install Tailwind CSS via npm
+#npm install -D tailwindcss postcss autoprefixer
+#npx tailwindcss init -p
+#2. Configure your template paths
+#3. Add the Tailwind directives to your CSS
+#@tailwind base;
+#npm install -D tailwindcss postcss autoprefixer
+#npx tailwindcss init -p #to generate tailwind.config.js and postcss.config.js
+#npm install axios #for making API requests
+#npm install react-router-dom #for routing
+#npm install @headlessui/react #for headless ui components
+
