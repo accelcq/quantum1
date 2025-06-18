@@ -21,7 +21,6 @@ load_dotenv(dotenv_path=".env.local")
 import numpy as np # type: ignore
 import pandas as pd
 from qiskit import QuantumCircuit # type: ignore
-from qiskit.utils import QuantumInstance  # type: ignore
 from qiskit_ibm_runtime import QiskitRuntimeService # type: ignore
 from qiskit.circuit.library import PauliFeatureMap # type: ignore
 from qiskit_machine_learning.optimizers import ADAM # type: ignore
