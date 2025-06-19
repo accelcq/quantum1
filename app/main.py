@@ -630,7 +630,9 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                     for xi in x:
                         qc = QuantumCircuit(num_features)
                         # Feature map
+                        from qiskit import transpile
                         feature_circ = feature_map.assign_parameters(xi)
+                        feature_circ = transpile(feature_circ, backend)
                         qc.compose(feature_circ, inplace=True)
                         # Ansatz
                         ansatz_circ = ansatz.assign_parameters(theta)
