@@ -20,7 +20,7 @@ import os, requests, json, pickle
 load_dotenv(dotenv_path=".env.local")
 import numpy as np # type: ignore
 import pandas as pd
-from qiskit import QuantumCircuit # type: ignore
+from qiskit import QuantumCircuit, QuantumRegister # type: ignore
 from qiskit_ibm_runtime import QiskitRuntimeService # type: ignore
 from qiskit.circuit.library import PauliFeatureMap # type: ignore
 from qiskit_machine_learning.optimizers import ADAM # type: ignore
@@ -363,7 +363,7 @@ def quantum_predict(
     log_step("QuantumML", f"Starting quantum prediction on backend {backend_name}")
     num_features = x_train.shape[1]
     qreg = QuantumRegister(num_features, 'q')
-    feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1, feature_map_type='zz', quantum_register=qreg)
+    feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
     ansatz = QuantumCircuit(qreg)
     params = ParameterVector('theta', length=num_features)
     for i in range(num_features):
@@ -613,9 +613,8 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                 continue
             num_features = x.shape[1]
             qreg = QuantumRegister(num_features, 'q')
-            feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1, feature_map_type='zz', quantum_register=qreg)
+            feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
             # Ansatz: simple Ry circuit
-            from qiskit.circuit import QuantumCircuit, ParameterVector
             ansatz = QuantumCircuit(qreg)
             params = ParameterVector('theta', length=num_features)
             for i in range(num_features):
