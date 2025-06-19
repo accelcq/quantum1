@@ -632,7 +632,7 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                     values = []
                     for xi in x:
                         qc = QuantumCircuit(num_features)
-                        # Feature map: assign parameters to the transpiled circuit
+                        # Feature map: assign parameters, do NOT transpile
                         feature_circ = feature_map.assign_parameters(xi)
                         qc.compose(feature_circ, inplace=True)
                         # Ansatz
