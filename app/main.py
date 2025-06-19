@@ -622,6 +622,9 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
             backend = service.backend("ibm_brisbane")
+            # Transpile the parameterized feature map once for backend compatibility
+            from qiskit import transpile
+            feature_map = transpile(feature_map, backend)
             with Session(service=service, backend=backend) as session:
                 estimator = Estimator(session=session)
                 # Objective function for classical optimizer
@@ -629,10 +632,8 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                     values = []
                     for xi in x:
                         qc = QuantumCircuit(num_features)
-                        # Feature map
-                        from qiskit import transpile
+                        # Feature map: assign parameters to the transpiled circuit
                         feature_circ = feature_map.assign_parameters(xi)
-                        feature_circ = transpile(feature_circ, backend)
                         qc.compose(feature_circ, inplace=True)
                         # Ansatz
                         ansatz_circ = ansatz.assign_parameters(theta)
