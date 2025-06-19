@@ -367,7 +367,7 @@ def quantum_predict(
     ansatz = QuantumCircuit(qreg)
     params = ParameterVector('theta', length=num_features)
     for i in range(num_features):
-        ansatz.ry(params[i], qreg[i])
+        ansatz.ry(params[i], i)
     optimizer = ADAM(maxiter=100)
     service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
     #backend = service.backend("ibm_brisbane")
@@ -615,10 +615,10 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             qreg = QuantumRegister(num_features, 'q')
             feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
             # Ansatz: simple Ry circuit
-            ansatz = QuantumCircuit(qreg)
+            ansatz = QuantumCircuit(num_features)
             params = ParameterVector('theta', length=num_features)
             for i in range(num_features):
-                ansatz.ry(params[i], qreg[i])
+                ansatz.ry(params[i], i)
             # Setup Estimator primitive
             from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
