@@ -341,8 +341,10 @@ def quantum_predict(
         ansatz.ry(params[i], i)
     optimizer = ADAM(maxiter=100)
     service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-    backend = service.backend("ibm_brisbane")
-    estimator = Estimator(backend=backend)
+    #backend = service.backend("ibm_brisbane")
+    backend = service.backend(backend_name)
+    log_step("QuantumML", f"Using backend: {backend.name()}")
+    # Setup VQR
     vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer)
     log_step("QuantumML", "Fitting VQR model")
     vqr.fit(x_train, y_train)
@@ -557,12 +559,11 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     return results
 
 # --- Quantum QNN Training ---
-try:
-    from qiskit.utils import QuantumInstance
-except ImportError:
-    from qiskit.utils.quantum_instance import QuantumInstance
+from qiskit.primitives import Estimator
+from qiskit.circuit.library import PauliFeatureMap
+from scipy.optimize import minimize
 
-def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
+def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
     results = {}
     for symbol in symbols:
@@ -579,20 +580,39 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict:
                 continue
             num_features = x.shape[1]
             feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
+            # Ansatz: simple Ry circuit
+            from qiskit.circuit import QuantumCircuit, ParameterVector
             ansatz = QuantumCircuit(num_features)
             params = ParameterVector('theta', length=num_features)
             for i in range(num_features):
                 ansatz.ry(params[i], i)
-            optimizer = ADAM(maxiter=20)
+            # Setup Estimator primitive
+            from qiskit_ibm_runtime import QiskitRuntimeService
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
             backend = service.backend("ibm_brisbane")
-            estimator = Estimator(backend=backend)
-            quantum_instance = QuantumInstance(backend)
-            vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, quantum_instance=quantum_instance)
-            vqr.fit(x, y)
-            save_model(vqr, f"{symbol}_quantum_qnn.pkl")
+            log_step("TrainQuantumQNN", f"Using backend: {backend.name()}")
+            estimator = Estimator()
+            # Objective function for classical optimizer
+            def objective(theta):
+                values = []
+                for xi in x:
+                    qc = QuantumCircuit(num_features)
+                    # Feature map
+                    feature_circ = feature_map.assign_parameters(xi)
+                    qc.compose(feature_circ, inplace=True)
+                    # Ansatz
+                    ansatz_circ = ansatz.assign_parameters(theta)
+                    qc.compose(ansatz_circ, inplace=True)
+                    # Z observable on first qubit
+                    value = estimator.run(qc, observables=[("Z", [0])]).result().values[0]
+                    values.append(value)
+                return np.mean((np.array(values) - y) ** 2)
+            theta0 = np.random.rand(num_features)
+            res = minimize(objective, theta0, method='COBYLA')
+            # Save trained parameters
+            save_model(res.x, f"{symbol}_quantum_qnn_params.pkl")
             save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
-            log_step("TrainQuantumQNN", f"Trained and saved QNN model for {symbol}")
+            log_step("TrainQuantumQNN", f"Trained and saved QNN params for {symbol}")
             results[symbol] = "trained"
         except HTTPException as e:
             log_step("TrainQuantumQNN", f"HTTPException for {symbol}: {e.detail}")
@@ -652,8 +672,8 @@ def objective(theta, x, y):
     # Mean squared error
     return np.mean((np.array(values) - y) ** 2)
 
-theta0 = np.random.rand(num_features)
-res = minimize(objective, theta0, args=(x_train, y_train), method='COBYLA')
+# The following lines are removed because num_features, x_train, and y_train are not defined in this scope,
+# and similar optimization logic is already implemented inside the train_quantum_qnn function.
 
 def predict(theta, x):
     preds = []
@@ -668,4 +688,5 @@ def predict(theta, x):
         preds.append(value)
     return np.array(preds)
 
-y_pred = predict(res.x, x_test)
+# y_pred = predict(res.x, x_test)
+# This line is removed because 'res', 'x_test', and the required context are not defined here.
