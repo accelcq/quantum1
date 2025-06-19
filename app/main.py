@@ -12,10 +12,9 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 import logging
 from typing import Any, List, Dict, Optional
-from datetime import timedelta, datetime, timezone
+from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv  # type: ignore
 import os, requests, json, pickle
-import datetime
 
 # Load environment variables from .env.local
 load_dotenv(dotenv_path=".env.local")
@@ -239,7 +238,7 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
     return df
 
 def get_today_str():
-    return datetime.datetime.now().strftime('%Y-%m-%d')
+    return datetime.now().strftime('%Y-%m-%d')
 
 def fetch_and_cache_stock_data(symbol: str) -> pd.DataFrame:
     today = get_today_str()
@@ -373,6 +372,9 @@ def quantum_predict(
     #backend = service.backend("ibm_brisbane")
     backend = service.backend(backend_name)
     log_step("QuantumML", f"Using backend: {backend.name()}")
+    # Transpile feature map for backend compatibility
+    from qiskit import transpile
+    feature_map = transpile(feature_map, backend)
     # Setup VQR
     vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer)
     log_step("QuantumML", "Fitting VQR model")
