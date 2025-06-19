@@ -632,12 +632,14 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                     values = []
                     for xi in x:
                         qc = QuantumCircuit(num_features)
-                        # Feature map: assign parameters and append instructions
+                        # Feature map: assign parameters and append instructions one by one
                         feature_circ = feature_map.assign_parameters(xi)
-                        qc.append(feature_circ.to_instruction(), qc.qubits)
+                        for instr, qargs, cargs in feature_circ.data:
+                            qc.append(instr, qargs, cargs)
                         # Ansatz
                         ansatz_circ = ansatz.assign_parameters(theta)
-                        qc.append(ansatz_circ.to_instruction(), qc.qubits)
+                        for instr, qargs, cargs in ansatz_circ.data:
+                            qc.append(instr, qargs, cargs)
                         # Z observable on first qubit
                         observable = SparsePauliOp("Z" + "I" * (num_features - 1))
                         value = estimator.run(qc, observable).result().values[0]
