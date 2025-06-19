@@ -559,9 +559,9 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     return results
 
 # --- Quantum QNN Training ---
-from qiskit.primitives import Estimator
-from qiskit.circuit.library import PauliFeatureMap
-from scipy.optimize import minimize
+from qiskit.primitives import Estimator # type: ignore
+from qiskit.circuit.library import PauliFeatureMap # type: ignore
+from scipy.optimize import minimize  # type: ignore
 
 def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
@@ -587,33 +587,34 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             for i in range(num_features):
                 ansatz.ry(params[i], i)
             # Setup Estimator primitive
-            from qiskit_ibm_runtime import QiskitRuntimeService
+            from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
             backend = service.backend("ibm_brisbane")
-            log_step("TrainQuantumQNN", f"Using backend: {backend.name()}")
-            estimator = Estimator()
-            # Objective function for classical optimizer
-            def objective(theta):
-                values = []
-                for xi in x:
-                    qc = QuantumCircuit(num_features)
-                    # Feature map
-                    feature_circ = feature_map.assign_parameters(xi)
-                    qc.compose(feature_circ, inplace=True)
-                    # Ansatz
-                    ansatz_circ = ansatz.assign_parameters(theta)
-                    qc.compose(ansatz_circ, inplace=True)
-                    # Z observable on first qubit
-                    value = estimator.run(qc, observables=[("Z", [0])]).result().values[0]
-                    values.append(value)
-                return np.mean((np.array(values) - y) ** 2)
-            theta0 = np.random.rand(num_features)
-            res = minimize(objective, theta0, method='COBYLA')
-            # Save trained parameters
-            save_model(res.x, f"{symbol}_quantum_qnn_params.pkl")
-            save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
-            log_step("TrainQuantumQNN", f"Trained and saved QNN params for {symbol}")
-            results[symbol] = "trained"
+            with Session(service=service, backend=backend) as session:
+                estimator = Estimator(session=session)
+                # Objective function for classical optimizer
+                def objective(theta):
+                    values = []
+                    for xi in x:
+                        qc = QuantumCircuit(num_features)
+                        # Feature map
+                        feature_circ = feature_map.assign_parameters(xi)
+                        qc.compose(feature_circ, inplace=True)
+                        # Ansatz
+                        ansatz_circ = ansatz.assign_parameters(theta)
+                        qc.compose(ansatz_circ, inplace=True)
+                        # Z observable on first qubit
+                        observable = SparsePauliOp("Z" + "I" * (num_features - 1))
+                        value = estimator.run(qc, observable).result().values[0]
+                        values.append(value)
+                    return np.mean((np.array(values) - y) ** 2)
+                theta0 = np.random.rand(num_features)
+                res = minimize(objective, theta0, method='COBYLA')
+                # Save trained parameters
+                save_model(res.x, f"{symbol}_quantum_qnn_params.pkl")
+                save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
+                log_step("TrainQuantumQNN", f"Trained and saved QNN params for {symbol}")
+                results[symbol] = "trained"
         except HTTPException as e:
             log_step("TrainQuantumQNN", f"HTTPException for {symbol}: {e.detail}")
             results[symbol] = f"error: {e.detail}"
@@ -666,8 +667,8 @@ def objective(theta, x, y):
         ansatz_circ = ansatz.assign_parameters(theta)
         qc.compose(ansatz_circ, inplace=True)
         # Measure expectation value of Z on first qubit
-        op = [("Z", [0])]
-        value = estimator.run(qc, observables=op).result().values[0]
+        observable = SparsePauliOp("Z" + "I" * (num_features - 1))
+        value = estimator.run(qc, observable).result().values[0]
         values.append(value)
     # Mean squared error
     return np.mean((np.array(values) - y) ** 2)
@@ -683,10 +684,8 @@ def predict(theta, x):
         qc.compose(feature_circ, inplace=True)
         ansatz_circ = ansatz.assign_parameters(theta)
         qc.compose(ansatz_circ, inplace=True)
-        op = [("Z", [0])]
-        value = estimator.run(qc, observables=op).result().values[0]
+        observable = SparsePauliOp("Z" + "I" * (num_features - 1))
+        value = estimator.run(qc, observable).result().values[0]
         preds.append(value)
     return np.array(preds)
-
-# y_pred = predict(res.x, x_test)
-# This line is removed because 'res', 'x_test', and the required context are not defined here.
+# --- End of Code ---
