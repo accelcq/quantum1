@@ -15,6 +15,7 @@ from typing import Any, List, Dict, Optional
 from datetime import timedelta, datetime, timezone
 from dotenv import load_dotenv  # type: ignore
 import os, requests, json, pickle
+import datetime
 
 # Load environment variables from .env.local
 load_dotenv(dotenv_path=".env.local")
@@ -33,6 +34,7 @@ from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
 import sys
 from .config import load_api_keys
+from qiskit.quantum_info import SparsePauliOp
 
 # Qiskit 1.0.0 compatible imports (install with pip if missing):
 # pip install "qiskit==1.0.0" "qiskit-aer==0.13.3" "qiskit-ibm-runtime==0.22.0" "qiskit-machine-learning==0.7.1"
@@ -236,6 +238,20 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"DataFrame created for {symbol}, shape: {df.shape}")
     return df
 
+def get_today_str():
+    return datetime.datetime.now().strftime('%Y-%m-%d')
+
+def fetch_and_cache_stock_data(symbol: str) -> pd.DataFrame:
+    today = get_today_str()
+    cache_file = f"{symbol}_historical_{today}.csv"
+    if os.path.exists(cache_file):
+        log_step("DataFetch", f"Loading cached data for {symbol} from {cache_file}")
+        return pd.read_csv(cache_file)
+    df = fetch_stock_data(symbol)
+    df.to_csv(cache_file, index=False)
+    log_step("DataFetch", f"Fetched and cached data for {symbol} to {cache_file}")
+    return df
+
 # --- Model Save/Load ---
 MODEL_PATH: str = "quantum1_model.pkl"
 DATA_PATH: str = "quantum1_train_data.json"
@@ -252,6 +268,19 @@ def load_model(path: str = MODEL_PATH) -> Any:
         model = pickle.load(f)
     log_step("ModelLoad", f"Model loaded from {path}")
     return model
+
+def save_trained_model(model: Any, symbol: str, model_type: str):
+    today = get_today_str()
+    model_file = f"{symbol}_{model_type}_{today}.pkl"
+    with open(model_file, "wb") as f:
+        pickle.dump(model, f)
+    log_step("ModelSave", f"Saved {model_type} model for {symbol} to {model_file}")
+
+def load_trained_model(symbol: str, model_type: str):
+    today = get_today_str()
+    model_file = f"{symbol}_{model_type}_{today}.pkl"
+    with open(model_file, "rb") as f:
+        return pickle.load(f)
 
 def save_train_data(data: dict[str, Any], path: str = DATA_PATH) -> None:
     log_step("DataSave", f"Saving training data to {path}")
@@ -538,6 +567,7 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             if len(df) < 3:
                 log_step("TrainClassicalANN", f"Not enough data for {symbol}, skipping.")
                 results[symbol] = "not enough data"
+                continue
             x, y, _ = make_features(df, window=2, n_points=7)
             if len(x) == 0:
                 log_step("TrainClassicalANN", f"No features for {symbol}, skipping.")
