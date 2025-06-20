@@ -151,7 +151,29 @@ jobs:
         run: |
           echo "Backend deployment applied"
           kubectl get deployment quantum1-backend -n $NAMESPACE
+          
+      - name: Cleanup old frontend images (keep only the latest)
+        run: |
+          images=$(ibmcloud cr images --restrict $REPO_FRONTEND --format '{{.Repository}}:{{.Tag}} {{.Created}}' | sort -k2 -r)
+          latest=$(echo "$images" | head -n 1 | awk '{print $1}')
+          for img in $(echo "$images" | awk '{print $1}'); do
+            if [ "$img" != "$latest" ]; then
+              echo "Deleting old frontend image: $img"
+              ibmcloud cr image-rm $img || true
+            fi
+          done
 
+      - name: Cleanup old backend images (keep only the latest)
+        run: |
+          images=$(ibmcloud cr images --restrict $REPO_BACKEND --format '{{.Repository}}:{{.Tag}} {{.Created}}' | sort -k2 -r)
+          latest=$(echo "$images" | head -n 1 | awk '{print $1}')
+          for img in $(echo "$images" | awk '{print $1}'); do
+            if [ "$img" != "$latest" ]; then
+              echo "Deleting old backend image: $img"
+              ibmcloud cr image-rm $img || true
+            fi
+          done
+      
       - name: Debug Service Endpoints
         run: |
           echo "Getting service endpoints in namespace $NAMESPACE"
