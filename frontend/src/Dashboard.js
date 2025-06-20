@@ -26,6 +26,7 @@ const Dashboard = () => {
   const [symbol, setSymbol] = useState("AAPL");
   const [chartData, setChartData] = useState([]);
   const [responses, setResponses] = useState({});
+  const [backend, setBackend] = useState("");
 
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -135,33 +136,46 @@ const Dashboard = () => {
       {/* Classical Train */}
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">3. Train Classical Model</h2>
-        <button onClick={() => callAPI("POST", "/train/classical", [symbol])} className="w-full bg-indigo-600 py-2 rounded-lg">Train</button>
+        <button onClick={() => callAPI("POST", "/train/classical", { symbols: [symbol] })} className="w-full bg-indigo-600 py-2 rounded-lg">Train using Classical ML</button>
         <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/train/classical"], null, 2)}</pre>
       </motion.div>
 
       {/* Quantum Train */}
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">4. Train Quantum Model</h2>
-        <button onClick={() => callAPI("POST", "/train/quantum", [symbol])} className="w-full bg-indigo-600 py-2 rounded-lg">Train</button>
+        <button onClick={() => callAPI("POST", "/train/quantum", { symbols: [symbol] })} className="w-full bg-indigo-600 py-2 rounded-lg">Train using Quantum ML</button>
         <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/train/quantum"], null, 2)}</pre>
       </motion.div>
 
-      {/* Predict QNN */}
+      {/* Predict using Quantum Simulator */}
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">5. Predict using QNN</h2>
-        <button onClick={() => callAPI("POST", "/predict/quantum", [symbol])} className="w-full bg-teal-600 py-2 rounded-lg">Predict</button>
-        {responses["/predict/quantum"] && (
+        <h2 className="text-xl font-semibold mb-4">5. Predict using Quantum Simulator</h2>
+        <button onClick={() => callAPI("POST", "/predict/quantum/simulator", { symbols: [symbol] })} className="w-full bg-teal-600 py-2 rounded-lg">Predict (Simulator)</button>
+        {responses["/predict/quantum/simulator"] && (
           <>
-            <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/quantum"], null, 2)}</pre>
-            <button onClick={() => exportCSV(responses["/predict/quantum"], `${symbol}_qnn_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
+            <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/quantum/simulator"], null, 2)}</pre>
+            <button onClick={() => exportCSV(responses["/predict/quantum/simulator"], `${symbol}_qnn_sim_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
           </>
         )}
       </motion.div>
 
-      {/* Predict ANN */}
+      {/* Predict using Real Quantum Machine */}
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">6. Predict using ANN</h2>
-        <button onClick={() => callAPI("POST", "/predict/classical", [symbol])} className="w-full bg-teal-600 py-2 rounded-lg">Predict</button>
+        <h2 className="text-xl font-semibold mb-4">6. Predict using Real Quantum Machine</h2>
+        <input className="w-full px-4 py-2 mb-2 rounded-lg text-black" placeholder="Quantum backend (e.g. ibm_brisbane)" value={backend} onChange={e => setBackend(e.target.value)} />
+        <button onClick={() => callAPI("POST", `/predict/quantum/machine/${backend}`, { symbols: [symbol] })} className="w-full bg-teal-700 py-2 rounded-lg">Predict (Real Quantum)</button>
+        {responses[`/predict/quantum/machine/${backend}`] && (
+          <>
+            <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses[`/predict/quantum/machine/${backend}`], null, 2)}</pre>
+            <button onClick={() => exportCSV(responses[`/predict/quantum/machine/${backend}`], `${symbol}_qnn_real_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
+          </>
+        )}
+      </motion.div>
+
+      {/* Predict using Classical ML */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">7. Predict using Classical ML</h2>
+        <button onClick={() => callAPI("POST", "/predict/classical", { symbols: [symbol] })} className="w-full bg-teal-600 py-2 rounded-lg">Predict (Classical ML)</button>
         {responses["/predict/classical"] && (
           <>
             <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/classical"], null, 2)}</pre>
