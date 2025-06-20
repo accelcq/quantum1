@@ -152,6 +152,14 @@ jobs:
           echo "Backend deployment applied"
           kubectl get deployment quantum1-backend -n $NAMESPACE
           
+      - name: Apply Backend Service
+        run: |
+          kubectl apply -f quantum1-backend-service.yaml -n $NAMESPACE
+
+      - name: Apply Frontend Service
+        run: |
+          kubectl apply -f frontend/quantum1-frontend-service.yaml -n $NAMESPACE
+
       - name: Cleanup old frontend images (keep only the latest)
         run: |
           images=$(ibmcloud cr images --restrict $REPO_FRONTEND --format '{{.Repository}}:{{.Tag}} {{.Created}}' | sort -k2 -r)
