@@ -17,6 +17,7 @@ from .main import (
     save_train_data,
     log_step
 )
+from qiskit.quantum_info import SparsePauliOp
 
 router = APIRouter()
 
@@ -47,6 +48,7 @@ def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:
             backend = AerSimulator()
             log_step("QuantumML", f"Using backend: {backend.name()}")
             estimator = Estimator(backend=backend)
+            observable = SparsePauliOp("Z" + "I" * (num_features - 1))
             def objective(theta):
                 values = []
                 for xi in x:
@@ -58,7 +60,7 @@ def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:
                     ansatz_circ = ansatz.assign_parameters(theta)
                     for instr, qargs, cargs in ansatz_circ.data:
                         qc.append(instr, [qc.qubits[ansatz_circ.qubits.index(q)] for q in qargs], cargs)
-                    value = estimator.run(qc, "Z" + "I" * (num_features - 1)).result().values[0]
+                    value = estimator.run(qc, observable).result().values[0]
                     values.append(value)
                 return np.mean((np.array(values) - y) ** 2)
             theta0 = np.random.rand(num_features)
