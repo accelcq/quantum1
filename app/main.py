@@ -621,14 +621,16 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             # Setup Estimator primitive
             from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-            # For development and debugging, use AerSimulator and the Estimator primitive directly (no Session needed).
-            # For real hardware, use QiskitRuntimeService, Session, and Estimator as shown below.
+            # For development and debugging, use AerSimulator and the Estimator primitive from qiskit.primitives (no Session needed).
+            # For real hardware, use QiskitRuntimeService, Session, and Estimator from qiskit_ibm_runtime as shown below.
             from qiskit_aer import AerSimulator
+            from qiskit.primitives import Estimator  # Use this for AerSimulator
             backend = AerSimulator()  # Use this for local/simulator runs
             log_step("QuantumML", f"Using backend: {backend.name()}")
-            # For simulator, use Estimator directly (no Session)
             estimator = Estimator(backend=backend)
-            # For real hardware, comment out the above line and use the block below:
+            # For real hardware, comment out the above three lines and use the block below:
+            # from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
+            # service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
             # backend = service.backend("ibm_brisbane")
             # with Session(service=service, backend=backend) as session:
             #     estimator = Estimator(session=session)
