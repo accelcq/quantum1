@@ -11,6 +11,7 @@ from .quantum_utils import quantum_predict
 from .main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
+from pydantic import BaseModel
 
 # --- Use IBMQ_API_TOKEN from environment ---
 IBMQ_API_TOKEN = os.getenv("IBMQ_API_TOKEN")
@@ -34,8 +35,12 @@ def build_ansatz(num_qubits: int, depth: int = 1) -> QuantumCircuit:
             qc.cx(i, (i + 1) % num_qubits)
     return qc
 
+class SymbolsRequest(BaseModel):
+    symbols: List[str]
+
 @router.post("/predict/quantum/simulator")
-def api_predict_quantum_simulator(symbols: List[str], request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:
+def api_predict_quantum_simulator(symbols_req: SymbolsRequest, request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:
+    symbols = symbols_req.symbols
     log_step("API", f"POST /predict/quantum/simulator called for symbols: {symbols}")
     results: dict[str, dict[str, float | list[Any] | str]] = {}
     today = get_today_str()

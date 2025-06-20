@@ -9,6 +9,7 @@ from typing import List
 from sklearn.metrics import mean_squared_error
 from .quantum_utils import quantum_predict
 from .main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
+from pydantic import BaseModel
 
 # --- Use IBMQ_API_TOKEN from environment ---
 IBMQ_API_TOKEN = os.getenv("IBMQ_API_TOKEN")
@@ -18,8 +19,12 @@ router = APIRouter()
 def get_today_str():
     return datetime.now().strftime('%Y-%m-%d')
 
+class SymbolsRequest(BaseModel):
+    symbols: List[str]
+
 @router.post("/predict/quantum/machine/{backend}")
-def api_predict_quantum_machine(backend: str, symbols: List[str], request: Request):
+def api_predict_quantum_machine(backend: str, symbols_req: SymbolsRequest, request: Request):
+    symbols = symbols_req.symbols
     log_step("API", f"POST /predict/quantum/machine/{backend} called for symbols: {symbols}")
     today = get_today_str()
     def event_stream():
