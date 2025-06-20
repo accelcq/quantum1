@@ -2,22 +2,37 @@
 import os
 import json
 import numpy as np
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime
 from typing import Any, List, Dict
 from sklearn.metrics import mean_squared_error
-from .main import fetch_and_cache_stock_data_json, make_features, quantum_predict, save_model, save_train_data, log_step
-# --- Import quantum QNN training if needed ---
-from .Qtraining import train_quantum_qnn
+from .quantum_utils import quantum_predict
+from .main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
+from qiskit import QuantumCircuit
+from qiskit.circuit import Parameter
 
-# Read IBMQ API token from environment
+# --- Use IBMQ_API_TOKEN from environment ---
 IBMQ_API_TOKEN = os.getenv("IBMQ_API_TOKEN")
 
 router = APIRouter()
 
 def get_today_str():
     return datetime.now().strftime('%Y-%m-%d')
+
+def build_ansatz(num_qubits: int, depth: int = 1) -> QuantumCircuit:
+    """
+    Build a generic Ry ansatz circuit with optional depth.
+    Each layer applies Ry rotations to all qubits, followed by a ring of CNOTs.
+    """
+    qc = QuantumCircuit(num_qubits)
+    for d in range(depth):
+        params = [Parameter(f"theta_{d}_{i}") for i in range(num_qubits)]
+        for i in range(num_qubits):
+            qc.ry(params[i], i)
+        for i in range(num_qubits):
+            qc.cx(i, (i + 1) % num_qubits)
+    return qc
 
 @router.post("/predict/quantum/simulator")
 def api_predict_quantum_simulator(symbols: List[str], request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:
