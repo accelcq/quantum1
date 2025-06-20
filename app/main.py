@@ -633,8 +633,9 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                     values = []
                     for xi in x:
                         qc = QuantumCircuit(num_features)
-                        # Feature map: assign parameters and append instructions, robust qubit mapping
-                        feature_circ = feature_map.assign_parameters(xi)
+                        # Create a fresh feature map for each input to avoid register mutation
+                        feature_map_local = PauliFeatureMap(feature_dimension=num_features, reps=1)
+                        feature_circ = feature_map_local.assign_parameters(xi)
                         for instr, qargs, cargs in feature_circ.data:
                             qc.append(instr, [qc.qubits[feature_circ.qubits.index(q)] for q in qargs], cargs)
                         # Ansatz
