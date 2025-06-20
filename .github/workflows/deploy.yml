@@ -128,7 +128,7 @@ jobs:
         run: |
           echo "Applying frontend deployment to namespace $NAMESPACE"
           kubectl apply -f frontend/quantum1-frontend-deployment.yaml -n $NAMESPACE
-          kubectl rollout restart deployment quantum1-frontend -n $NAMESPACE
+          
       - name: Wait for Frontend Deployment to be Ready
         run: |
           kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE
@@ -142,7 +142,7 @@ jobs:
         run: |
           echo "Applying backend deployment to namespace $NAMESPACE"
           kubectl apply -f quantum1-backend-deployment.yaml -n $NAMESPACE
-          kubectl rollout restart deployment quantum1-backend -n $NAMESPACE
+          
       - name: Wait for Backend Deployment to be Ready
         run: |
           kubectl rollout status deployment/quantum1-backend -n $NAMESPACE
