@@ -107,7 +107,7 @@ jobs:
 
       - name: Patch Frontend Deployment YAML with new image tag
         run: |
-          sed -i "s|image: $REGISTRY/$REPO_FRONTEND:.*|image: $REGISTRY/$REPO_FRONTEND:$IMAGE_TAG|g" frontend/${FRONTEND_DEPLOYMENT_FILE}
+          sed -i "s|image: us.icr.io/quantum1space/quantum1-frontend:latest|image: us.icr.io/quantum1space/quantum1-frontend:$IMAGE_TAG|g" frontend/${FRONTEND_DEPLOYMENT_FILE}
 
       - name: Build and Push Backend Image
         working-directory: .
