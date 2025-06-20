@@ -647,6 +647,8 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                         qc = transpile(qc, backend)
                         # Z observable on first qubit
                         observable = SparsePauliOp("Z" + "I" * (num_features - 1))
+                        # Debug: log the number of qubits in the circuit and observable before running estimator
+                        log_step("QuantumDebug", f"qc.num_qubits={qc.num_qubits}, observable.num_qubits={observable.num_qubits}")
                         value = estimator.run(qc, observable).result().values[0]
                         values.append(value)
                     return np.mean((np.array(values) - y) ** 2)
@@ -710,6 +712,8 @@ def objective(theta, x, y):
         qc.compose(ansatz_circ, inplace=True)
         # Measure expectation value of Z on first qubit
         observable = SparsePauliOp("Z" + "I" * (num_features - 1))
+        # Debug: log the number of qubits in the circuit and observable before running estimator
+        log_step("QuantumDebug", f"qc.num_qubits={qc.num_qubits}, observable.num_qubits={observable.num_qubits}")
         value = estimator.run(qc, observable).result().values[0]
         values.append(value)
     # Mean squared error
