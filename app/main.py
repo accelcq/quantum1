@@ -362,9 +362,8 @@ def quantum_predict(
 ) -> Tuple[np.ndarray[Any, np.dtype[Any]], Any]:
     log_step("QuantumML", f"Starting quantum prediction on backend {backend_name}")
     num_features = x_train.shape[1]
-    qreg = QuantumRegister(num_features, 'q')
     feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
-    ansatz = QuantumCircuit(qreg)
+    ansatz = QuantumCircuit(num_features)
     params = ParameterVector('theta', length=num_features)
     for i in range(num_features):
         ansatz.ry(params[i], i)
@@ -613,7 +612,6 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                 results[symbol] = "no features"
                 continue
             num_features = x.shape[1]
-            qreg = QuantumRegister(num_features, 'q')
             feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
             # Ansatz: simple Ry circuit
             ansatz = QuantumCircuit(num_features)
