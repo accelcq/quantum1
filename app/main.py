@@ -535,9 +535,9 @@ def api_model_load(symbol: str, model_type: str, request: Request) -> dict[str, 
 
 # --- Top 10 stock symbols (example, can be customized) ---
 TOP_10_SYMBOLS = [
-    "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "JPM", "V", "UNH"
+    "AAPL" # Apple Inc.
 ]
-
+#, "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "JPM", "V", "UNH"
 # --- Fetch 1 week of historical data for a symbol ---
 def fetch_one_week_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"Fetching 1 week data for {symbol}")
@@ -633,14 +633,14 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                     values = []
                     for xi in x:
                         qc = QuantumCircuit(num_features)
-                        # Feature map: assign parameters and append instructions, remapping qubits by index
+                        # Feature map: assign parameters and append instructions, robust qubit mapping
                         feature_circ = feature_map.assign_parameters(xi)
                         for instr, qargs, cargs in feature_circ.data:
-                            qc.append(instr, [qc.qubits[q.index] for q in qargs], cargs)
+                            qc.append(instr, [qc.qubits[feature_circ.qubits.index(q)] for q in qargs], cargs)
                         # Ansatz
                         ansatz_circ = ansatz.assign_parameters(theta)
                         for instr, qargs, cargs in ansatz_circ.data:
-                            qc.append(instr, [qc.qubits[q.index] for q in qargs], cargs)
+                            qc.append(instr, [qc.qubits[ansatz_circ.qubits.index(q)] for q in qargs], cargs)
                         # Z observable on first qubit
                         observable = SparsePauliOp("Z" + "I" * (num_features - 1))
                         value = estimator.run(qc, observable).result().values[0]
