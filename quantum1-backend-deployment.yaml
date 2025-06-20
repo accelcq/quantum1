@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: quantum1-backend
-        image: us.icr.io/quantum1space/quantum1-backend:latest
+        image: us.icr.io/quantum1space/quantum1-backend:${IMAGE_TAG}
         ports:
         - containerPort: 8080
         env:
