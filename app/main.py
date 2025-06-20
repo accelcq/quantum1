@@ -2,10 +2,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse # type: ignore
 from fastapi.staticfiles import StaticFiles # type: ignore
 from fastapi import FastAPI, Request, Depends, HTTPException, status, Response # type: ignore
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse # type: ignore
-from fastapi.staticfiles import StaticFiles # type: ignore
-from fastapi import FastAPI, Request, Depends, HTTPException, status, Response # type: ignore
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -251,6 +247,19 @@ def fetch_and_cache_stock_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"Fetched and cached data for {symbol} to {cache_file}")
     return df
 
+# --- Data Fetching with Daily JSON Cache ---
+def fetch_and_cache_stock_data_json(symbol: str) -> pd.DataFrame:
+    today = get_today_str()
+    cache_file = f"{symbol}_historical_{today}.json"
+    if os.path.exists(cache_file):
+        log_step("DataFetch", f"Loading cached JSON data for {symbol} from {cache_file}")
+        df = pd.read_json(cache_file)
+        return df
+    df = fetch_stock_data(symbol)
+    df.to_json(cache_file, orient="records")
+    log_step("DataFetch", f"Fetched and cached JSON data for {symbol} to {cache_file}")
+    return df
+
 # --- Model Save/Load ---
 MODEL_PATH: str = "quantum1_model.pkl"
 DATA_PATH: str = "quantum1_train_data.json"
@@ -403,45 +412,36 @@ def api_predict_classical(symbols: List[str], request: Request) -> Dict[str, Dic
     log_step("API", f"POST /predict/classical called for symbols: {symbols}")
     check_ibm_keys()
     results: dict[str, dict[str, float | list[Any] | str]] = {}
+    today = get_today_str()
     for symbol in symbols:
-        log_step("API", f"Processing symbol: {symbol}")
-        ann_model_path = f"{symbol}_classical_ann.pkl"
-        ann_data_path = f"{symbol}_ann_train_data.json"
-        if os.path.exists(ann_model_path) and os.path.exists(ann_data_path):
-            log_step("API", f"Using ANN model/data for {symbol}")
-            model = load_model(ann_model_path)
-            data: dict[str, list[float]] = load_train_data(ann_data_path)
-            x = np.array(data["x_train"], dtype=np.float64)
-            y = np.array(data["y_train"], dtype=np.float64)
-            y_pred = model.predict(x)
-            mse = mean_squared_error(y, y_pred)
-            results[symbol] = {
-                "dates": [],
-                "y_test": y.tolist(),
-                "y_pred": y_pred.tolist(),
-                "mse": mse,
-                "model_type": "ann"
-            }
-        else:
-            log_step("API", f"ANN model/data not found for {symbol}, using default classical model.")
-            df = fetch_stock_data(symbol)
-            x, y, dates = make_features(df)
-            x_train = x[:400]
-            x_test = x[400:]
-            y_train = y[:400]
-            y_test = y[400:]
-            y_pred, model = classical_predict(x_train, y_train, x_test)
-            mse = mean_squared_error(y_test, y_pred)
-            results[symbol] = {
-                "dates": dates[400:],
-                "y_test": y_test.tolist(),
-                "y_pred": y_pred.tolist(),
-                "mse": mse,
-                "model_type": "linear_regression"
-            }
-            save_model(model, f"{symbol}_classical.pkl")
-            save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_train_data.json")
-        log_step("API", f"Classical prediction complete for {symbol}")
+        pred_cache = f"{symbol}_classical_pred_{today}.json"
+        if os.path.exists(pred_cache):
+            log_step("API", f"Returning cached classical prediction for {symbol}")
+            with open(pred_cache, "r") as f:
+                results[symbol] = json.load(f)
+            continue
+        # Use daily JSON data for training
+        df = fetch_and_cache_stock_data_json(symbol)
+        x, y, dates = make_features(df)
+        x_train = x[:400]
+        x_test = x[400:]
+        y_train = y[:400]
+        y_test = y[400:]
+        y_pred, model = classical_predict(x_train, y_train, x_test)
+        mse = mean_squared_error(y_test, y_pred)
+        result = {
+            "dates": dates[400:],
+            "y_test": y_test.tolist(),
+            "y_pred": y_pred.tolist(),
+            "mse": mse,
+            "model_type": "linear_regression"
+        }
+        results[symbol] = result
+        with open(pred_cache, "w") as f:
+            json.dump(result, f)
+        save_model(model, f"{symbol}_classical_{today}.pkl")
+        save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_train_data_{today}.json")
+        log_step("API", f"Classical prediction complete and cached for {symbol}")
     log_step("API", "Returning classical prediction results")
     return results
 
@@ -492,46 +492,87 @@ def api_predict_quantum(symbols: list[str], request: Request) -> dict[str, dict[
     log_step("API", "Returning quantum prediction results")
     return results
 
-@app.get("/model/data/{symbol}/{model_type}")
-def api_model_data(symbol: str, model_type: str, request: Request) -> dict[str, list[float]]:
-    log_step("API", f"GET /model/data/{symbol}/{model_type} called")
-    check_ibm_keys()
-    if model_type == "ann":
-        data: dict[str, list[float]] = load_train_data(f"{symbol}_ann_train_data.json")
-    elif model_type == "qnn":
-        data = load_train_data(f"{symbol}_qnn_train_data.json")
-    elif model_type == "classical":
-        data = load_train_data(f"{symbol}_train_data.json")
-    elif model_type == "quantum":
-        data = load_train_data(f"{symbol}_train_data.json")
-    else:
-        raise HTTPException(status_code=400, detail="Invalid model_type")
-    log_step("API", f"Returning model data for {symbol} ({model_type})")
-    return data
+# --- Quantum Prediction: Simulator and Real Hardware, with Daily Cache ---
+from fastapi.responses import StreamingResponse
 
-@app.get("/model/load/{symbol}/{model_type}")
-def api_model_load(symbol: str, model_type: str, request: Request) -> dict[str, list[float]]:
-    log_step("API", f"GET /model/load/{symbol}/{model_type} called")
+@app.post("/predict/quantum/simulator")
+def api_predict_quantum_simulator(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
+    log_step("API", f"POST /predict/quantum/simulator called for symbols: {symbols}")
     check_ibm_keys()
-    if model_type == "ann":
-        model = load_model(f"{symbol}_classical_ann.pkl")
-        data: dict[str, list[float]] = load_train_data(f"{symbol}_ann_train_data.json")
-    elif model_type == "qnn":
-        model = load_model(f"{symbol}_quantum_qnn.pkl")
-        data = load_train_data(f"{symbol}_qnn_train_data.json")
-    elif model_type == "classical":
-        model = load_model(f"{symbol}_classical.pkl")
-        data = load_train_data(f"{symbol}_train_data.json")
-    elif model_type == "quantum":
-        model = load_model(f"{symbol}_quantum.pkl")
-        data = load_train_data(f"{symbol}_train_data.json")
-    else:
-        raise HTTPException(status_code=400, detail="Invalid model_type")
-    x_train = np.array(data["x_train"], dtype=np.float64)
-    y_train = np.array(data["y_train"], dtype=np.float64)
-    y_pred = model.predict(x_train)
-    log_step("API", f"Returning loaded model predictions for {symbol} ({model_type})")
-    return {"y_pred": y_pred.tolist(), "y_train": y_train.tolist()}
+    results: dict[str, dict[str, float | list[Any] | str]] = {}
+    today = get_today_str()
+    for symbol in symbols:
+        pred_cache = f"{symbol}_quantum_sim_pred_{today}.json"
+        if os.path.exists(pred_cache):
+            log_step("API", f"Returning cached quantum simulator prediction for {symbol}")
+            with open(pred_cache, "r") as f:
+                results[symbol] = json.load(f)
+            continue
+        df = fetch_and_cache_stock_data_json(symbol)
+        x, y, dates = make_features(df)
+        x_train = x[:400]
+        x_test = x[400:]
+        y_train = y[:400]
+        y_test = y[400:]
+        # Simulator prediction (AerSimulator)
+        y_pred, vqr = quantum_predict(x_train, y_train, x_test, backend_name="aer_simulator")
+        mse = mean_squared_error(y_test, y_pred)
+        result = {
+            "dates": dates[400:],
+            "y_test": y_test.tolist(),
+            "y_pred": y_pred.tolist(),
+            "mse": mse,
+            "model_type": "vqr_simulator"
+        }
+        results[symbol] = result
+        with open(pred_cache, "w") as f:
+            json.dump(result, f)
+        save_model(vqr, f"{symbol}_quantum_sim_{today}.pkl")
+        save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_qnn_train_data_sim_{today}.json")
+        log_step("API", f"Quantum simulator prediction complete and cached for {symbol}")
+    log_step("API", "Returning quantum simulator prediction results")
+    return results
+
+@app.post("/predict/quantum/machine/{backend}")
+def api_predict_quantum_machine(backend: str, symbols: list[str], request: Request):
+    log_step("API", f"POST /predict/quantum/machine/{backend} called for symbols: {symbols}")
+    check_ibm_keys()
+    today = get_today_str()
+    def event_stream():
+        for symbol in symbols:
+            pred_cache = f"{symbol}_quantum_{backend}_pred_{today}.json"
+            if os.path.exists(pred_cache):
+                log_step("API", f"Returning cached quantum hardware prediction for {symbol}")
+                with open(pred_cache, "r") as f:
+                    yield f"data: {json.dumps({symbol: json.load(f)})}\n\n"
+                continue
+            df = fetch_and_cache_stock_data_json(symbol)
+            x, y, dates = make_features(df)
+            x_train = x[:400]
+            x_test = x[400:]
+            y_train = y[:400]
+            y_test = y[400:]
+            # Real hardware prediction
+            try:
+                y_pred, vqr = quantum_predict(x_train, y_train, x_test, backend_name=backend)
+                mse = mean_squared_error(y_test, y_pred)
+                result = {
+                    "dates": dates[400:],
+                    "y_test": y_test.tolist(),
+                    "y_pred": y_pred.tolist(),
+                    "mse": mse,
+                    "model_type": f"vqr_{backend}"
+                }
+                with open(pred_cache, "w") as f:
+                    json.dump(result, f)
+                save_model(vqr, f"{symbol}_quantum_{backend}_{today}.pkl")
+                save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_qnn_train_data_{backend}_{today}.json")
+                log_step("API", f"Quantum hardware prediction complete and cached for {symbol}")
+                yield f"data: {json.dumps({symbol: result})}\n\n"
+            except Exception as e:
+                log_step("API", f"Quantum hardware prediction error for {symbol}: {str(e)}")
+                yield f"data: {json.dumps({symbol: {'error': str(e)}})}\n\n"
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 # --- Top 10 stock symbols (example, can be customized) ---
 TOP_10_SYMBOLS = [
@@ -743,3 +784,8 @@ def predict(theta, x):
         value = estimator.run(qc, observable).result().values[0]
         preds.append(value)
     return np.array(preds)
+
+# --- Remove duplicate imports and use full package names ---
+# Remove duplicate and ambiguous imports at the top of the file.
+# Use full package names in code for clarity and to avoid runtime errors.
+# Example: use qiskit.circuit.ParameterVector instead of just ParameterVector, etc.
