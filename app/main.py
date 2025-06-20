@@ -375,7 +375,8 @@ def quantum_predict(
     log_step("QuantumML", f"Using backend: {backend.name()}")
     # Transpile feature map for backend compatibility
     from qiskit import transpile
-    feature_map = transpile(feature_map, backend)
+    # Do NOT transpile the feature map here; only transpile the final circuit after assembly
+    # feature_map = transpile(feature_map, backend)  # <-- removed to prevent circuit qubit mismatch
     # Setup VQR
     vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer)
     log_step("QuantumML", "Fitting VQR model")
@@ -625,7 +626,8 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             backend = service.backend("ibm_brisbane")
             # Transpile the parameterized feature map once for backend compatibility
             from qiskit import transpile
-            feature_map = transpile(feature_map, backend)
+            # Do NOT transpile the feature map here; only transpile the final circuit after assembly
+            # feature_map = transpile(feature_map, backend)  # <-- removed to prevent circuit qubit mismatch
             with Session(service=service, backend=backend) as session:
                 estimator = Estimator(session=session)
                 # Objective function for classical optimizer
