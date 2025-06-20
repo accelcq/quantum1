@@ -621,52 +621,53 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             # Setup Estimator primitive
             from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-            # Use AerSimulator for development and debugging
+            # For development and debugging, use AerSimulator and the Estimator primitive directly (no Session needed).
+            # For real hardware, use QiskitRuntimeService, Session, and Estimator as shown below.
             from qiskit_aer import AerSimulator
-            backend = AerSimulator()
-            #backend = service.backend("ibm_brisbane")
+            backend = AerSimulator()  # Use this for local/simulator runs
             log_step("QuantumML", f"Using backend: {backend.name()}")
-            # Transpile feature map for backend compatibility
-            from qiskit import transpile
-            # Do NOT transpile the feature map here; only transpile the final circuit after assembly
-            # feature_map = transpile(feature_map, backend)  # <-- removed to prevent circuit qubit mismatch
-            with Session(service=service, backend=backend) as session:
-                estimator = Estimator(session=session)
-                # Objective function for classical optimizer
-                def objective(theta):
-                    values = []
-                    for xi in x:
-                        qc = QuantumCircuit(num_features)
-                        # Create a fresh feature map for each input to avoid register mutation
-                        feature_map_local = PauliFeatureMap(feature_dimension=num_features, reps=1)
-                        feature_circ = feature_map_local.assign_parameters(xi)
-                        for instr, qargs, cargs in feature_circ.data:
-                            qc.append(instr, [qc.qubits[feature_circ.qubits.index(q)] for q in qargs], cargs)
-                        # Ansatz
-                        ansatz_circ = ansatz.assign_parameters(theta)
-                        for instr, qargs, cargs in ansatz_circ.data:
-                            qc.append(instr, [qc.qubits[ansatz_circ.qubits.index(q)] for q in qargs], cargs)
-                        # Log circuit details before transpilation
-                        log_step("QuantumDebug", f"qc before transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
-                        # Transpile the full circuit for backend compatibility, restricting to num_features qubits
-                        from qiskit import transpile
-                        qc = transpile(qc, backend, initial_layout=list(range(num_features)))
-                        # Log circuit details after transpilation
-                        log_step("QuantumDebug", f"qc after transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
-                        # Z observable on first qubit
-                        observable = SparsePauliOp("Z" + "I" * (num_features - 1))
-                        # Debug: log the number of qubits in the circuit and observable before running estimator
-                        log_step("QuantumDebug", f"qc.num_qubits={qc.num_qubits}, observable.num_qubits={observable.num_qubits}")
-                        value = estimator.run(qc, observable).result().values[0]
-                        values.append(value)
-                    return np.mean((np.array(values) - y) ** 2)
-                theta0 = np.random.rand(num_features)
-                res = minimize(objective, theta0, method='COBYLA')
-                # Save trained parameters
-                save_model(res.x, f"{symbol}_quantum_qnn_params.pkl")
-                save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
-                log_step("TrainQuantumQNN", f"Trained and saved QNN params for {symbol}")
-                results[symbol] = "trained"
+            # For simulator, use Estimator directly (no Session)
+            estimator = Estimator(backend=backend)
+            # For real hardware, comment out the above line and use the block below:
+            # backend = service.backend("ibm_brisbane")
+            # with Session(service=service, backend=backend) as session:
+            #     estimator = Estimator(session=session)
+            #     ... (rest of the code inside the session block)
+            # Objective function for classical optimizer
+            def objective(theta):
+                values = []
+                for xi in x:
+                    qc = QuantumCircuit(num_features)
+                    # Create a fresh feature map for each input to avoid register mutation
+                    feature_map_local = PauliFeatureMap(feature_dimension=num_features, reps=1)
+                    feature_circ = feature_map_local.assign_parameters(xi)
+                    for instr, qargs, cargs in feature_circ.data:
+                        qc.append(instr, [qc.qubits[feature_circ.qubits.index(q)] for q in qargs], cargs)
+                    # Ansatz
+                    ansatz_circ = ansatz.assign_parameters(theta)
+                    for instr, qargs, cargs in ansatz_circ.data:
+                        qc.append(instr, [qc.qubits[ansatz_circ.qubits.index(q)] for q in qargs], cargs)
+                    # Log circuit details before transpilation
+                    log_step("QuantumDebug", f"qc before transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
+                    # Transpile the full circuit for backend compatibility, restricting to num_features qubits
+                    from qiskit import transpile
+                    qc = transpile(qc, backend, initial_layout=list(range(num_features)))
+                    # Log circuit details after transpilation
+                    log_step("QuantumDebug", f"qc after transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
+                    # Z observable on first qubit
+                    observable = SparsePauliOp("Z" + "I" * (num_features - 1))
+                    # Debug: log the number of qubits in the circuit and observable before running estimator
+                    log_step("QuantumDebug", f"qc.num_qubits={qc.num_qubits}, observable.num_qubits={observable.num_qubits}")
+                    value = estimator.run(qc, observable).result().values[0]
+                    values.append(value)
+                return np.mean((np.array(values) - y) ** 2)
+            theta0 = np.random.rand(num_features)
+            res = minimize(objective, theta0, method='COBYLA')
+            # Save trained parameters
+            save_model(res.x, f"{symbol}_quantum_qnn_params.pkl")
+            save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
+            log_step("TrainQuantumQNN", f"Trained and saved QNN params for {symbol}")
+            results[symbol] = "trained"
         except HTTPException as e:
             log_step("TrainQuantumQNN", f"HTTPException for {symbol}: {e.detail}")
             results[symbol] = f"error: {e.detail}"
