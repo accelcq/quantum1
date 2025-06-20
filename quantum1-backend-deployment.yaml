@@ -20,8 +20,8 @@ spec:
         ports:
         - containerPort: 8080
         env:
-        - name: IBM_QUANTUM_API_TOKEN
+        - name: IBMQ_API_TOKEN
           valueFrom:
             secretKeyRef:
               name: quantum1-secrets
-              key: IBM_QUANTUM_API_TOKEN
+              key: IBMQ_API_TOKEN

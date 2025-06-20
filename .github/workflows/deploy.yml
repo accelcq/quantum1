@@ -11,6 +11,7 @@ on:
 env:
   # Environment variables for IBM Cloud and Kubernetes
   IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}  
+  IBMQ_API_TOKEN: ${{ secrets.IBMQ_API_TOKEN }}
   REGION: ${{ secrets.IBM_CLOUD_REGION }}
   RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
   CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
@@ -77,6 +78,7 @@ jobs:
             --docker-username=iamapikey \
             --docker-password="$IBM_CLOUD_API_KEY" \
             --docker-email=ranjantxusa@gmail.com \
+            --from-literal=IBMQ_API_TOKEN="$IBMQ_API_TOKEN" \
             -n $NAMESPACE || echo "Secret already exists"
 
       - name: Patch default serviceaccount with imagePullSecret
