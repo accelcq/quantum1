@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import Any, List, Dict
 from sklearn.metrics import mean_squared_error
 from .main import fetch_and_cache_stock_data_json, make_features, quantum_predict, save_model, save_train_data, log_step
+# --- Import quantum QNN training if needed ---
+from .Qtraining import train_quantum_qnn
 
 # Read IBMQ API token from environment
 IBMQ_API_TOKEN = os.getenv("IBMQ_API_TOKEN")

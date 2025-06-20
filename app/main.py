@@ -24,7 +24,6 @@ from qiskit_aer import Aer  # type: ignore
 from qiskit.circuit import Parameter # type: ignore
 from qiskit_machine_learning.algorithms import VQR # type: ignore
 from qiskit.circuit import ParameterVector  # type: ignore
-#from qiskit_ibm_runtime import Estimator  # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
 import sys
@@ -347,56 +346,6 @@ def classical_predict(
     log_step("ClassicalML", "Prediction complete")
     return y_pred, model
 
-# --- Quantum ML (Qiskit 1.0.0, IBM Quantum backend) ---
-def build_ansatz(n: int, depth: int) -> QuantumCircuit:
-    log_step("QuantumML", f"Building ansatz with n={n}, depth={depth}")
-    qc = QuantumCircuit(n)
-    for j in range(depth):
-        for i in range(n):
-            param_name = f'theta_{j}_{i}'
-            theta_param = Parameter(param_name)
-            qc.rx(theta_param, i)
-            qc.ry(theta_param, i)
-            qc.rz(theta_param, i)
-    for i in range(n):
-        if i == n - 1:
-            qc.cx(i, 0)  # Use 'cx' for CNOT, not 'cnot'
-        else:
-            qc.cx(i, i + 1)
-    log_step("QuantumML", "Ansatz built")
-    return qc
-
-def quantum_predict(
-    x_train: np.ndarray[Any, Any],
-    y_train: np.ndarray[Any, Any],
-    x_test: np.ndarray[Any, Any],
-    backend_name: str = "ibm_brisbane"
-) -> Tuple[np.ndarray[Any, np.dtype[Any]], Any]:
-    log_step("QuantumML", f"Starting quantum prediction on backend {backend_name}")
-    num_features = x_train.shape[1]
-    feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
-    ansatz = QuantumCircuit(num_features)
-    params = ParameterVector('theta', length=num_features)
-    for i in range(num_features):
-        ansatz.ry(params[i], i)
-    optimizer = ADAM(maxiter=100)
-    service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-    #backend = service.backend("ibm_brisbane")
-    backend = service.backend(backend_name)
-    log_step("QuantumML", f"Using backend: {backend}")
-    # Transpile feature map for backend compatibility
-    from qiskit import transpile
-    # Do NOT transpile the feature map here; only transpile the final circuit after assembly
-    # feature_map = transpile(feature_map, backend)  # <-- removed to prevent circuit qubit mismatch
-    # Setup VQR
-    vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer)
-    log_step("QuantumML", "Fitting VQR model")
-    vqr.fit(x_train, y_train)
-    log_step("QuantumML", "Model fit complete, predicting")
-    y_pred = vqr.predict(x_test)
-    log_step("QuantumML", "Quantum prediction complete")
-    return y_pred, vqr
-
 # --- API Endpoints ---
 
 from typing import List, Dict, Any
@@ -447,135 +396,6 @@ def api_predict_classical(symbols: List[str], request: Request) -> Dict[str, Dic
         log_step("API", f"Classical prediction complete and cached for {symbol}")
     log_step("API", "Returning classical prediction results")
     return results
-
-@app.post("/predict/quantum")
-def api_predict_quantum(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
-    log_step("API", f"POST /predict/quantum called for symbols: {symbols}")
-    check_ibm_keys()
-    results: dict[str, dict[str, float | list[Any] | str]] = {}
-    for symbol in symbols:
-        log_step("API", f"Processing symbol: {symbol}")
-        qnn_model_path = f"{symbol}_quantum_qnn.pkl"
-        qnn_data_path = f"{symbol}_qnn_train_data.json"
-        if os.path.exists(qnn_model_path) and os.path.exists(qnn_data_path):
-            log_step("API", f"Using QNN model/data for {symbol}")
-            model = load_model(qnn_model_path)
-            data: dict[str, list[float]] = load_train_data(qnn_data_path)
-            x = np.array(data["x_train"], dtype=np.float64)
-            y = np.array(data["y_train"], dtype=np.float64)
-            y_pred = model.predict(x)
-            mse = mean_squared_error(y, y_pred)
-            results[symbol] = {
-                "dates": [],
-                "y_test": y.tolist(),
-                "y_pred": y_pred.tolist(),
-                "mse": mse,
-                "model_type": "qnn"
-            }
-        else:
-            log_step("API", f"QNN model/data not found for {symbol}, using default quantum model.")
-            df = fetch_stock_data(symbol)
-            x, y, dates = make_features(df)
-            x_train = x[:400]
-            x_test = x[400:]
-            y_train = y[:400]
-            y_test = y[400:]
-            y_pred, vqr = quantum_predict(x_train, y_train, x_test)
-            mse = mean_squared_error(y_test, y_pred)
-            results[symbol] = {
-                "dates": dates[400:],
-                "y_test": y_test.tolist(),
-                "y_pred": y_pred.tolist(),
-                "mse": mse,
-                "model_type": "vqr"
-            }
-            save_model(vqr, f"{symbol}_quantum.pkl")
-            save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_train_data.json")
-        log_step("API", f"Quantum prediction complete for {symbol}")
-    log_step("API", "Returning quantum prediction results")
-    return results
-
-# --- Quantum Prediction: Simulator and Real Hardware, with Daily Cache ---
-from fastapi.responses import StreamingResponse
-
-@app.post("/predict/quantum/simulator")
-def api_predict_quantum_simulator(symbols: list[str], request: Request) -> dict[str, dict[str, float | list | str]]:
-    log_step("API", f"POST /predict/quantum/simulator called for symbols: {symbols}")
-    check_ibm_keys()
-    results: dict[str, dict[str, float | list[Any] | str]] = {}
-    today = get_today_str()
-    for symbol in symbols:
-        pred_cache = f"{symbol}_quantum_sim_pred_{today}.json"
-        if os.path.exists(pred_cache):
-            log_step("API", f"Returning cached quantum simulator prediction for {symbol}")
-            with open(pred_cache, "r") as f:
-                results[symbol] = json.load(f)
-            continue
-        df = fetch_and_cache_stock_data_json(symbol)
-        x, y, dates = make_features(df)
-        x_train = x[:400]
-        x_test = x[400:]
-        y_train = y[:400]
-        y_test = y[400:]
-        # Simulator prediction (AerSimulator)
-        y_pred, vqr = quantum_predict(x_train, y_train, x_test, backend_name="aer_simulator")
-        mse = mean_squared_error(y_test, y_pred)
-        result = {
-            "dates": dates[400:],
-            "y_test": y_test.tolist(),
-            "y_pred": y_pred.tolist(),
-            "mse": mse,
-            "model_type": "vqr_simulator"
-        }
-        results[symbol] = result
-        with open(pred_cache, "w") as f:
-            json.dump(result, f)
-        save_model(vqr, f"{symbol}_quantum_sim_{today}.pkl")
-        save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_qnn_train_data_sim_{today}.json")
-        log_step("API", f"Quantum simulator prediction complete and cached for {symbol}")
-    log_step("API", "Returning quantum simulator prediction results")
-    return results
-
-@app.post("/predict/quantum/machine/{backend}")
-def api_predict_quantum_machine(backend: str, symbols: list[str], request: Request):
-    log_step("API", f"POST /predict/quantum/machine/{backend} called for symbols: {symbols}")
-    check_ibm_keys()
-    today = get_today_str()
-    def event_stream():
-        for symbol in symbols:
-            pred_cache = f"{symbol}_quantum_{backend}_pred_{today}.json"
-            if os.path.exists(pred_cache):
-                log_step("API", f"Returning cached quantum hardware prediction for {symbol}")
-                with open(pred_cache, "r") as f:
-                    yield f"data: {json.dumps({symbol: json.load(f)})}\n\n"
-                continue
-            df = fetch_and_cache_stock_data_json(symbol)
-            x, y, dates = make_features(df)
-            x_train = x[:400]
-            x_test = x[400:]
-            y_train = y[:400]
-            y_test = y[400:]
-            # Real hardware prediction
-            try:
-                y_pred, vqr = quantum_predict(x_train, y_train, x_test, backend_name=backend)
-                mse = mean_squared_error(y_test, y_pred)
-                result = {
-                    "dates": dates[400:],
-                    "y_test": y_test.tolist(),
-                    "y_pred": y_pred.tolist(),
-                    "mse": mse,
-                    "model_type": f"vqr_{backend}"
-                }
-                with open(pred_cache, "w") as f:
-                    json.dump(result, f)
-                save_model(vqr, f"{symbol}_quantum_{backend}_{today}.pkl")
-                save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_qnn_train_data_{backend}_{today}.json")
-                log_step("API", f"Quantum hardware prediction complete and cached for {symbol}")
-                yield f"data: {json.dumps({symbol: result})}\n\n"
-            except Exception as e:
-                log_step("API", f"Quantum hardware prediction error for {symbol}: {str(e)}")
-                yield f"data: {json.dumps({symbol: {'error': str(e)}})}\n\n"
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 # --- Top 10 stock symbols (example, can be customized) ---
 TOP_10_SYMBOLS = [
@@ -635,91 +455,6 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             results[symbol] = f"error: {str(e)}"
     return results
 
-# --- Quantum QNN Training ---
-from qiskit.primitives import Estimator # type: ignore  # For AerSimulator (simulator) only
-from qiskit.circuit.library import PauliFeatureMap # type: ignore
-from scipy.optimize import minimize  # type: ignore
-
-def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
-    log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
-    results = {}
-    for symbol in symbols:
-        try:
-            df = fetch_one_week_data(symbol)
-            if len(df) < 3:
-                log_step("TrainQuantumQNN", f"Not enough data for {symbol}, skipping.")
-                results[symbol] = "not enough data"
-                continue
-            x, y, dates = make_features(df, window=2, n_points=7)
-            if len(x) == 0:
-                log_step("TrainQuantumQNN", f"No features for {symbol}, skipping.")
-                results[symbol] = "no features"
-                continue
-            num_features = x.shape[1]
-            feature_map = PauliFeatureMap(feature_dimension=num_features, reps=1)
-            # Ansatz: simple Ry circuit
-            ansatz = QuantumCircuit(num_features)
-            params = ParameterVector('theta', length=num_features)
-            for i in range(num_features):
-                ansatz.ry(params[i], i)
-            # --- Simulator (AerSimulator) setup ---
-            from qiskit_aer import AerSimulator
-            from qiskit.primitives import Estimator  # For AerSimulator (simulator)
-            backend = AerSimulator()  # Use this for local/simulator runs
-            log_step("QuantumML", f"Using backend: {backend.name()}")
-            log_step("QuantumDebug", f"Estimator class: {Estimator} (type: {type(Estimator)})")
-            estimator = Estimator(backend=backend)
-            # --- Real hardware (IBM Quantum) setup ---
-            # Uncomment and use the following block for real hardware:
-            # from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session  # For IBM Quantum hardware
-            # service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-            # backend = service.backend("ibm_brisbane")
-            # with Session(service=service, backend=backend) as session:
-            #     estimator = Estimator(session=session)
-            #     ... (rest of the code inside the session block)
-            # Objective function for classical optimizer
-            def objective(theta):
-                values = []
-                for xi in x:
-                    qc = QuantumCircuit(num_features)
-                    # Create a fresh feature map for each input to avoid register mutation
-                    feature_map_local = PauliFeatureMap(feature_dimension=num_features, reps=1)
-                    feature_circ = feature_map_local.assign_parameters(xi)
-                    for instr, qargs, cargs in feature_circ.data:
-                        qc.append(instr, [qc.qubits[feature_circ.qubits.index(q)] for q in qargs], cargs)
-                    # Ansatz
-                    ansatz_circ = ansatz.assign_parameters(theta)
-                    for instr, qargs, cargs in ansatz_circ.data:
-                        qc.append(instr, [qc.qubits[ansatz_circ.qubits.index(q)] for q in qargs], cargs)
-                    # Log circuit details before transpilation
-                    log_step("QuantumDebug", f"qc before transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
-                    # Transpile the full circuit for backend compatibility, restricting to num_features qubits
-                    from qiskit import transpile
-                    qc = transpile(qc, backend, initial_layout=list(range(num_features)))
-                    # Log circuit details after transpilation
-                    log_step("QuantumDebug", f"qc after transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
-                    # Z observable on first qubit
-                    observable = SparsePauliOp("Z" + "I" * (num_features - 1))
-                    # Debug: log the number of qubits in the circuit and observable before running estimator
-                    log_step("QuantumDebug", f"qc.num_qubits={qc.num_qubits}, observable.num_qubits={observable.num_qubits}")
-                    value = estimator.run(qc, observable).result().values[0]
-                    values.append(value)
-                return np.mean((np.array(values) - y) ** 2)
-            theta0 = np.random.rand(num_features)
-            res = minimize(objective, theta0, method='COBYLA')
-            # Save trained parameters
-            save_model(res.x, f"{symbol}_quantum_qnn_params.pkl")
-            save_train_data({"x_train": x.tolist(), "y_train": y.tolist()}, f"{symbol}_qnn_train_data.json")
-            log_step("TrainQuantumQNN", f"Trained and saved QNN params for {symbol}")
-            results[symbol] = "trained"
-        except HTTPException as e:
-            log_step("TrainQuantumQNN", f"HTTPException for {symbol}: {e.detail}")
-            results[symbol] = f"error: {e.detail}"
-        except Exception as e:
-            log_step("TrainQuantumQNN", f"Exception for {symbol}: {str(e)}")
-            results[symbol] = f"error: {str(e)}"
-    return results
-
 # --- FastAPI Endpoints for Training ---
 @app.post("/train/classical")
 def api_train_classical(_request: Request) -> dict[str, object]:
@@ -729,14 +464,6 @@ def api_train_classical(_request: Request) -> dict[str, object]:
     log_step("API", "Classical ANN training complete")
     return {"status": "success", "trained": result}
 
-@app.post("/train/quantum")
-def api_train_quantum(_request: Request) -> dict[str, object]:
-    check_ibm_keys()
-    log_step("API", "/train/quantum called")
-    result = train_quantum_qnn()
-    log_step("API", "Quantum QNN training complete")
-    return {"status": "success", "trained": result}
-
 # --- Helper: Check and auto-train if model missing in prediction endpoints ---
 def ensure_classical_ann(symbol: str):
     model_path = f"{symbol}_classical_ann.pkl"
@@ -744,57 +471,6 @@ def ensure_classical_ann(symbol: str):
         log_step("AutoTrain", f"Classical ANN model missing for {symbol}, training now.")
         train_classical_ann([symbol])
 
-def ensure_quantum_qnn(symbol: str):
-    model_path = f"{symbol}_quantum_qnn.pkl"
-    if not os.path.exists(model_path):
-        log_step("AutoTrain", f"Quantum QNN model missing for {symbol}, training now.")
-        train_quantum_qnn([symbol])
-
-from scipy.optimize import minimize
-
-def objective(theta, x, y):
-    # Build circuit for each input
-    values = []
-    for xi in x:
-        qc = QuantumCircuit(num_features)
-        # Encode features
-        feature_circ = feature_map.assign_parameters(xi)
-        qc.compose(feature_circ, inplace=True)
-        # Add ansatz
-        ansatz_circ = ansatz.assign_parameters(theta)
-        qc.compose(ansatz_circ, inplace=True)
-        # Measure expectation value of Z on first qubit
-        observable = SparsePauliOp("Z" + "I" * (num_features - 1))
-        # Debug: log the number of qubits in the circuit and observable before running estimator
-        log_step("QuantumDebug", f"qc.num_qubits={qc.num_qubits}, observable.num_qubits={observable.num_qubits}")
-        value = estimator.run(qc, observable).result().values[0]
-        values.append(value)
-    # Mean squared error
-    return np.mean((np.array(values) - y) ** 2)
-
-# The following lines are removed because num_features, x_train, and y_train are not defined in this scope,
-# and similar optimization logic is already implemented inside the train_quantum_qnn function.
-
-def predict(theta, x):
-    preds = []
-    for xi in x:
-        qc = QuantumCircuit(num_features)
-        feature_circ = feature_map.assign_parameters(xi)
-        qc.compose(feature_circ, inplace=True)
-        ansatz_circ = ansatz.assign_parameters(theta)
-        qc.compose(ansatz_circ, inplace=True)
-        observable = SparsePauliOp("Z" + "I" * (num_features - 1))
-        value = estimator.run(qc, observable).result().values[0]
-        preds.append(value)
-    return np.array(preds)
-
-# --- Remove duplicate imports and use full package names ---
-# Remove duplicate and ambiguous imports at the top of the file.
-# Use full package names in code for clarity and to avoid runtime errors.
-# Example: use qiskit.circuit.ParameterVector instead of just ParameterVector, etc.
-
-# --- Import and include routers for quantum endpoints ---
-from .Qsimulator import router as qsimulator_router
-from .Qmachine import router as qmachine_router
-app.include_router(qsimulator_router)
-app.include_router(qmachine_router)
+# --- Import and include router for quantum training ---
+from .Qtraining import router as qtraining_router
+app.include_router(qtraining_router)
