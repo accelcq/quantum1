@@ -26,7 +26,7 @@ const Dashboard = () => {
   const [symbol, setSymbol] = useState("AAPL");
   const [chartData, setChartData] = useState([]);
   const [responses, setResponses] = useState({});
-  const [backend, setBackend] = useState("");
+  const [backend, setBackend] = useState("ibm_brisbane");
 
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 

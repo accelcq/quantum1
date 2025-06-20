@@ -479,10 +479,10 @@ from .Qmachine import router as qmachine_router
 app.include_router(qmachine_router)
 
 @app.post("/predict/compare")
-def api_predict_compare(request: Request):
+async def api_predict_compare(request: Request):
     data = await request.json()
     symbols = data.get("symbols", [])
-    backend = data.get("backend", "ibm_brisbane")
+    backend = data.get("backend") or "ibm_brisbane"
     results = {}
     for symbol in symbols:
         # Classical
