@@ -2,16 +2,15 @@
 import os
 import json
 import numpy as np
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 from datetime import datetime
-from typing import Any, List, Dict
+from typing import List
 from sklearn.metrics import mean_squared_error
-from .main import fetch_and_cache_stock_data_json, make_features, quantum_predict, save_model, save_train_data, log_step
-# --- Import quantum QNN training if needed ---
-from .Qtraining import train_quantum_qnn
+from .quantum_utils import quantum_predict
+from .main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
 
-# Read IBMQ API token from environment
+# --- Use IBMQ_API_TOKEN from environment ---
 IBMQ_API_TOKEN = os.getenv("IBMQ_API_TOKEN")
 
 router = APIRouter()
