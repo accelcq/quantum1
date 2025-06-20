@@ -51,7 +51,7 @@ def quantum_predict(
         print(f"Using IBM Quantum backend: {backend_name}")
         print(f"Using IBMQ_API_TOKEN: {IBMQ_API_TOKEN is not None}")
 
-        service = QiskitRuntimeService(channel="ibm_quantum" token="IBMQ_API_TOKEN")
+        service = QiskitRuntimeService(channel="ibm_quantum", token=IBMQ_API_TOKEN)
         backend = service.backend(backend_name)
         vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, quantum_instance=backend)
 
