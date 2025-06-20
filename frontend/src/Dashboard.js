@@ -6,6 +6,20 @@ const API_URL = "http://localhost:8000";
 
 const symbolsList = ["AAPL", "GOOG", "MSFT", "TSLA", "AMZN", "META", "NVDA", "NFLX", "IBM", "INTC"];
 
+// Example: Top 10 stock symbols and company names
+const topStocks = [
+  { symbol: "AAPL", name: "Apple Inc." },
+  { symbol: "MSFT", name: "Microsoft Corporation" },
+  { symbol: "GOOGL", name: "Alphabet Inc." },
+  { symbol: "AMZN", name: "Amazon.com, Inc." },
+  { symbol: "META", name: "Meta Platforms, Inc." },
+  { symbol: "TSLA", name: "Tesla, Inc." },
+  { symbol: "NVDA", name: "NVIDIA Corporation" },
+  { symbol: "JPM", name: "JPMorgan Chase & Co." },
+  { symbol: "V", name: "Visa Inc." },
+  { symbol: "UNH", name: "UnitedHealth Group Incorporated" }
+];
+
 const Dashboard = () => {
   const [token, setToken] = useState("");
   const [login, setLogin] = useState({ username: "", password: "" });
@@ -85,6 +99,18 @@ const Dashboard = () => {
         <p className="mt-2 text-sm break-all">Token: {token ? `${token.slice(0, 20)}...` : "Not logged in"}</p>
       </motion.div>
 
+      {/* Top 10 Stock Symbols */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Top 10 Stock Symbols</h2>
+        <ul className="list-disc list-inside">
+          {topStocks.map(stock => (
+            <li key={stock.symbol}>
+              <b>{stock.symbol}</b>: {stock.name}
+            </li>
+          ))}
+        </ul>
+      </motion.div>
+      
       {/* Historical Data */}
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">2. Historical Data</h2>
