@@ -70,6 +70,19 @@ jobs:
           ibmcloud login --apikey $IBM_CLOUD_API_KEY -r $REGION -g $RESOURCE_GROUP
           ibmcloud cr login
           ibmcloud ks cluster config --cluster $CLUSTER_NAME
+      - name: Create IBM CR image pull secret in cluster
+        run: |
+          kubectl create secret docker-registry icr-secret \
+            --docker-server=us.icr.io \
+            --docker-username=iamapikey \
+            --docker-password="$IBM_CLOUD_API_KEY" \
+            --docker-email=ranjantxusa@gmail.com \
+            -n $NAMESPACE || echo "Secret already exists"
+
+      - name: Patch default serviceaccount with imagePullSecret
+        run: |
+          kubectl patch serviceaccount default -n $NAMESPACE \
+            -p '{"imagePullSecrets":[{"name":"icr-secret"}]}'
 
       - name: Print after IBM Cloud authentication
         run: |
@@ -110,10 +123,14 @@ jobs:
         run: |
           sed -i "s|image: $REGISTRY/$REPO_BACKEND:.*|image: $REGISTRY/$REPO_BACKEND:$IMAGE_TAG|g" ${BACKEND_DEPLOYMENT_FILE}
 
+          
       - name: Apply Frontend Deployment
         run: |
           echo "Applying frontend deployment to namespace $NAMESPACE"
           kubectl apply -f frontend/quantum1-frontend-deployment.yaml -n $NAMESPACE
+          kubectl rollout restart deployment quantum1-frontend -n $NAMESPACE
+      - name: Wait for Frontend Deployment to be Ready
+        run: |
           kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE
 
       - name: Print after frontend deployment
@@ -125,6 +142,9 @@ jobs:
         run: |
           echo "Applying backend deployment to namespace $NAMESPACE"
           kubectl apply -f quantum1-backend-deployment.yaml -n $NAMESPACE
+          kubectl rollout restart deployment quantum1-backend -n $NAMESPACE
+      - name: Wait for Backend Deployment to be Ready
+        run: |
           kubectl rollout status deployment/quantum1-backend -n $NAMESPACE
 
       - name: Print after backend deployment
