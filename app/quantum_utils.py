@@ -40,13 +40,18 @@ def quantum_predict(
         if Aer is None:
             raise ImportError("Qiskit Aer is not installed.")
         log_step("QuantumML", "Using local Aer simulator backend")
+        print(f"Using Aer backend: {Aer.name()}")
+        backend = Aer.get_backend(backend_name)
         # VQR uses the default local simulator if no backend is provided
         vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer)
     else:
         if QiskitRuntimeService is None:
             raise ImportError("Qiskit IBM Runtime is not installed.")
         log_step("QuantumML", f"Using IBM Quantum backend: {backend_name}")
-        service = QiskitRuntimeService(channel="ibm_quantum")
+        print(f"Using IBM Quantum backend: {backend_name}")
+        print(f"Using IBMQ_API_TOKEN: {IBMQ_API_TOKEN is not None}")
+
+        service = QiskitRuntimeService(channel="ibm_quantum" token="IBMQ_API_TOKEN")
         backend = service.backend(backend_name)
         vqr = VQR(feature_map=feature_map, ansatz=ansatz, optimizer=optimizer, quantum_instance=backend)
 

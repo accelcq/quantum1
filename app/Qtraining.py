@@ -18,6 +18,7 @@ from .main import (
     log_step
 )
 from qiskit.quantum_info import SparsePauliOp
+import traceback
 
 router = APIRouter()
 
@@ -60,7 +61,12 @@ def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:
                     ansatz_circ = ansatz.assign_parameters(theta)
                     for instr, qargs, cargs in ansatz_circ.data:
                         qc.append(instr, [qc.qubits[ansatz_circ.qubits.index(q)] for q in qargs], cargs)
-                    value = estimator.run(qc, observable).result().values[0]
+                    log_step("QuantumML", f"Estimator input types: qc={type(qc)}, observable={type(observable)}")
+                    try:
+                        value = estimator.run(qc, observable).result().values[0]
+                    except Exception as est_e:
+                        log_step("QuantumML", f"Estimator error: {str(est_e)}\n{traceback.format_exc()}")
+                        raise
                     values.append(value)
                 return np.mean((np.array(values) - y) ** 2)
             theta0 = np.random.rand(num_features)
@@ -73,7 +79,8 @@ def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:
             log_step("TrainQuantumQNN", f"HTTPException for {symbol}: {e.detail}")
             results[symbol] = f"error: {e.detail}"
         except Exception as e:
-            log_step("TrainQuantumQNN", f"Exception for {symbol}: {str(e)}")
+            tb = traceback.format_exc()
+            log_step("TrainQuantumQNN", f"Exception for {symbol}: {str(e)}\n{tb}")
             results[symbol] = f"error: {str(e)}"
     return results
 

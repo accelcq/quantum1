@@ -155,6 +155,25 @@ const Dashboard = () => {
           <>
             <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/quantum/simulator"], null, 2)}</pre>
             <button onClick={() => exportCSV(responses["/predict/quantum/simulator"], `${symbol}_qnn_sim_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
+            {/* Chart for Quantum Simulator Prediction */}
+            {responses["/predict/quantum/simulator"][symbol] && (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={responses["/predict/quantum/simulator"][symbol].y_test.map((y, i) => ({
+                    date: responses["/predict/quantum/simulator"][symbol].dates[i],
+                    Actual: y,
+                    Predicted: responses["/predict/quantum/simulator"][symbol].y_pred[i]
+                  }))}
+                >
+                  <XAxis dataKey="date" hide />
+                  <YAxis />
+                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <Line type="monotone" dataKey="Actual" stroke="#4ade80" dot={false} />
+                  <Line type="monotone" dataKey="Predicted" stroke="#818cf8" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </>
         )}
       </motion.div>
@@ -168,6 +187,25 @@ const Dashboard = () => {
           <>
             <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses[`/predict/quantum/machine/${backend}`], null, 2)}</pre>
             <button onClick={() => exportCSV(responses[`/predict/quantum/machine/${backend}`], `${symbol}_qnn_real_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
+            {/* Chart for Quantum Machine Prediction */}
+            {responses[`/predict/quantum/machine/${backend}`][symbol] && (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={responses[`/predict/quantum/machine/${backend}`][symbol].y_test.map((y, i) => ({
+                    date: responses[`/predict/quantum/machine/${backend}`][symbol].dates[i],
+                    Actual: y,
+                    Predicted: responses[`/predict/quantum/machine/${backend}`][symbol].y_pred[i]
+                  }))}
+                >
+                  <XAxis dataKey="date" hide />
+                  <YAxis />
+                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <Line type="monotone" dataKey="Actual" stroke="#4ade80" dot={false} />
+                  <Line type="monotone" dataKey="Predicted" stroke="#f472b6" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </>
         )}
       </motion.div>
@@ -176,10 +214,27 @@ const Dashboard = () => {
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">7. Predict using Classical ML</h2>
         <button onClick={() => callAPI("POST", "/predict/classical", { symbols: [symbol] })} className="w-full bg-teal-600 py-2 rounded-lg">Predict (Classical ML)</button>
-        {responses["/predict/classical"] && (
+        {responses["/predict/classical"] && responses["/predict/classical"][symbol] && (
           <>
             <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/classical"], null, 2)}</pre>
             <button onClick={() => exportCSV(responses["/predict/classical"], `${symbol}_ann_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
+            {/* Chart for Classical Prediction */}
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={responses["/predict/classical"][symbol].y_test.map((y, i) => ({
+                  date: responses["/predict/classical"][symbol].dates[i],
+                  Actual: y,
+                  Predicted: responses["/predict/classical"][symbol].y_pred[i]
+                }))}
+              >
+                <XAxis dataKey="date" hide />
+                <YAxis />
+                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" />
+                <Line type="monotone" dataKey="Actual" stroke="#4ade80" dot={false} />
+                <Line type="monotone" dataKey="Predicted" stroke="#818cf8" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </>
         )}
       </motion.div>

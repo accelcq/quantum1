@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 # --- Use IBMQ_API_TOKEN from environment ---
 IBMQ_API_TOKEN = os.getenv("IBMQ_API_TOKEN")
+print(f"Using IBMQ_API_TOKEN: {IBMQ_API_TOKEN is not None}")
 
 router = APIRouter()
 
