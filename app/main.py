@@ -642,9 +642,13 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
                         ansatz_circ = ansatz.assign_parameters(theta)
                         for instr, qargs, cargs in ansatz_circ.data:
                             qc.append(instr, [qc.qubits[ansatz_circ.qubits.index(q)] for q in qargs], cargs)
+                        # Log circuit details before transpilation
+                        log_step("QuantumDebug", f"qc before transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
                         # Transpile the full circuit for backend compatibility, restricting to num_features qubits
                         from qiskit import transpile
                         qc = transpile(qc, backend, initial_layout=list(range(num_features)))
+                        # Log circuit details after transpilation
+                        log_step("QuantumDebug", f"qc after transpile: qubits={qc.num_qubits}, circuit=\n{qc}")
                         # Z observable on first qubit
                         observable = SparsePauliOp("Z" + "I" * (num_features - 1))
                         # Debug: log the number of qubits in the circuit and observable before running estimator
