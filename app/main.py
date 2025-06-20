@@ -621,8 +621,12 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             # Setup Estimator primitive
             from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
             service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-            backend = service.backend("ibm_brisbane")
-            # Transpile the parameterized feature map once for backend compatibility
+            # Use AerSimulator for development and debugging
+            from qiskit_aer import AerSimulator
+            backend = AerSimulator()
+            #backend = service.backend("ibm_brisbane")
+            log_step("QuantumML", f"Using backend: {backend.name()}")
+            # Transpile feature map for backend compatibility
             from qiskit import transpile
             # Do NOT transpile the feature map here; only transpile the final circuit after assembly
             # feature_map = transpile(feature_map, backend)  # <-- removed to prevent circuit qubit mismatch
