@@ -40,17 +40,17 @@ const Intro = () => (
 
       <p className="text-center text-slate-400 text-sm">Typical Project Structure:</p>
       <pre className="text-xs text-slate-400 bg-slate-900 rounded p-4 overflow-x-auto mt-2">
-my-react-app/
-├── node_modules/
-├── public/
-├── src/
-│   └── App.js
-│   └── Dashboard.js
-│   └── index.js
-│   └── index.css
-├── tailwind.config.js   ✅ to support js,jsx,ts,tsx files
-├── postcss.config.js    ✅ to support tailwindcss and autoprefixer
-├── package.json
+<div>my-react-app/</div>
+<div>├── node_modules/</div>
+<div>├── public/</div>
+<div>├── src/</div>
+<div>│   └── App.js</div>
+<div>│   └── Dashboard.js</div>
+<div>│   └── index.js</div>
+<div>│   └── index.css</div>
+<div>├── tailwind.config.js   ✅ to support js,jsx,ts,tsx files</div>
+<div>├── postcss.config.js    ✅ to support tailwindcss and autoprefixer</div>
+<div>├── package.json</div>
       </pre>
     </div>
   </div>
