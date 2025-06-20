@@ -371,7 +371,7 @@ def quantum_predict(
     service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
     #backend = service.backend("ibm_brisbane")
     backend = service.backend(backend_name)
-    log_step("QuantumML", f"Using backend: {backend.name()}")
+    log_step("QuantumML", f"Using backend: {backend}")
     # Transpile feature map for backend compatibility
     from qiskit import transpile
     # Do NOT transpile the feature map here; only transpile the final circuit after assembly
