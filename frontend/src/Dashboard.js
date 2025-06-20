@@ -183,6 +183,61 @@ const Dashboard = () => {
           </>
         )}
       </motion.div>
+
+      {/* Prediction Comparison */}
+      <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">8. Prediction Comparison (Classical vs Quantum)</h2>
+        <button onClick={async () => {
+          const data = await callAPI("POST", "/predict/compare", { symbols: [symbol], backend });
+          setResponses(prev => ({ ...prev, "/predict/compare": data }));
+        }} className="w-full bg-pink-600 py-2 rounded-lg">Compare Predictions</button>
+        {responses["/predict/compare"] && (
+          <>
+            {/* Tabular View */}
+            <h3 className="text-lg font-semibold mt-4 mb-2">Tabular Comparison</h3>
+            <table className="w-full text-xs bg-slate-800 rounded mb-4">
+              <thead>
+                <tr>
+                  <th className="p-2">Model</th>
+                  <th className="p-2">MSE</th>
+                  <th className="p-2">y_pred (first 5)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {['classical', 'quantum_simulator', 'quantum_real'].map(type => (
+                  <tr key={type}>
+                    <td className="p-2 font-bold">{type.replace('_', ' ').toUpperCase()}</td>
+                    <td className="p-2">{responses["/predict/compare"][symbol]?.[type]?.mse ?? '-'}</td>
+                    <td className="p-2">{JSON.stringify(responses["/predict/compare"][symbol]?.[type]?.y_pred?.slice(0,5) ?? [])}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Graphical View */}
+            <h3 className="text-lg font-semibold mb-2">Graphical Comparison</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart>
+                <XAxis dataKey="index" />
+                <YAxis />
+                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" />
+                {['classical', 'quantum_simulator', 'quantum_real'].map(type => (
+                  responses["/predict/compare"][symbol]?.[type]?.y_pred ? (
+                    <Line
+                      key={type}
+                      data={responses["/predict/compare"][symbol][type].y_pred.map((y, i) => ({ index: i, y }))}
+                      dataKey="y"
+                      name={type.replace('_', ' ').toUpperCase()}
+                      stroke={type === 'classical' ? '#4ade80' : type === 'quantum_simulator' ? '#818cf8' : '#f472b6'}
+                      dot={false}
+                    />
+                  ) : null
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </>
+        )}
+      </motion.div>
     </div>
   );
 };

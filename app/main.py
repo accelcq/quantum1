@@ -477,3 +477,23 @@ app.include_router(qsimulator_router)
 # --- Import and include router for quantum machine prediction ---
 from .Qmachine import router as qmachine_router
 app.include_router(qmachine_router)
+
+@app.post("/predict/compare")
+def api_predict_compare(request: Request):
+    data = await request.json()
+    symbols = data.get("symbols", [])
+    backend = data.get("backend", "ibm_brisbane")
+    results = {}
+    for symbol in symbols:
+        # Classical
+        classical = await api_predict_classical([symbol], request)
+        # Quantum Simulator
+        quantum_sim = await api_predict_quantum_simulator([symbol], request)
+        # Quantum Real Machine
+        quantum_real = await api_predict_quantum_machine(backend, [symbol], request)
+        results[symbol] = {
+            "classical": classical.get(symbol, {}),
+            "quantum_simulator": quantum_sim.get(symbol, {}),
+            "quantum_real": quantum_real.get(symbol, {})
+        }
+    return results
