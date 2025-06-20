@@ -50,13 +50,23 @@ const Dashboard = () => {
     setResponses(prev => ({ ...prev, ["/historical"]: data }));
   };
 
-  const exportCSV = (data, filename) => {
-    const csv = [Object.keys(data[0]).join(","), ...data.map(row => Object.values(row).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
+  const exportCSV = (data, filename = "export.csv") => {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      alert("No data to export.");
+      return;
+    }
+    const keys = Object.keys(data[0]);
+    const csvRows = [
+      keys.join(","), // header
+      ...data.map(row => keys.map(k => JSON.stringify(row[k] ?? "")).join(","))
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
