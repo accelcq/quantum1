@@ -59,6 +59,9 @@ def log_step(step: str, detail: str):
 # Load API keys from environment variables or GitHub secrets
 FMP_API_KEY, IBM_CLOUD_API_KEY, IBM_QUANTUM_API_TOKEN = load_api_keys()
 
+# Rename IBM_CLOUD_API_TOKEN to IBMQ_API_TOKEN throughout this file for consistency
+IBMQ_API_TOKEN = IBM_CLOUD_API_TOKEN
+
 # FastAPI app to expose logs via Swagger UI
 app = FastAPI()
 
@@ -789,3 +792,9 @@ def predict(theta, x):
 # Remove duplicate and ambiguous imports at the top of the file.
 # Use full package names in code for clarity and to avoid runtime errors.
 # Example: use qiskit.circuit.ParameterVector instead of just ParameterVector, etc.
+
+# --- Import and include routers for quantum endpoints ---
+from .Qsimulator import router as qsimulator_router
+from .Qmachine import router as qmachine_router
+app.include_router(qsimulator_router)
+app.include_router(qmachine_router)
