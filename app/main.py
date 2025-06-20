@@ -592,7 +592,7 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     return results
 
 # --- Quantum QNN Training ---
-from qiskit.primitives import Estimator # type: ignore
+from qiskit.primitives import Estimator # type: ignore  # For AerSimulator (simulator) only
 from qiskit.circuit.library import PauliFeatureMap # type: ignore
 from scipy.optimize import minimize  # type: ignore
 
@@ -618,18 +618,16 @@ def train_quantum_qnn(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
             params = ParameterVector('theta', length=num_features)
             for i in range(num_features):
                 ansatz.ry(params[i], i)
-            # Setup Estimator primitive
-            from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
-            service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
-            # For development and debugging, use AerSimulator and the Estimator primitive from qiskit.primitives (no Session needed).
-            # For real hardware, use QiskitRuntimeService, Session, and Estimator from qiskit_ibm_runtime as shown below.
+            # --- Simulator (AerSimulator) setup ---
             from qiskit_aer import AerSimulator
-            from qiskit.primitives import Estimator  # Use this for AerSimulator
+            from qiskit.primitives import Estimator  # For AerSimulator (simulator)
             backend = AerSimulator()  # Use this for local/simulator runs
             log_step("QuantumML", f"Using backend: {backend.name()}")
+            log_step("QuantumDebug", f"Estimator class: {Estimator} (type: {type(Estimator)})")
             estimator = Estimator(backend=backend)
-            # For real hardware, comment out the above three lines and use the block below:
-            # from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session
+            # --- Real hardware (IBM Quantum) setup ---
+            # Uncomment and use the following block for real hardware:
+            # from qiskit_ibm_runtime import QiskitRuntimeService, Estimator, Session  # For IBM Quantum hardware
             # service = QiskitRuntimeService(channel="ibm_quantum", token=IBM_QUANTUM_API_TOKEN)
             # backend = service.backend("ibm_brisbane")
             # with Session(service=service, backend=backend) as session:
