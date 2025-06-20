@@ -743,4 +743,3 @@ def predict(theta, x):
         value = estimator.run(qc, observable).result().values[0]
         preds.append(value)
     return np.array(preds)
-# --- End of Code ---
