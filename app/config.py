@@ -31,18 +31,18 @@ def load_api_keys(dotenv_file: Optional[str] = None):
 
     fmp_api_key = os.getenv("FMP_API_KEY")
     ibm_cloud_api_key = os.getenv("IBM_CLOUD_API_KEY")
-    ibm_quantum_api_token = os.getenv("IBM_QUANTUM_API_TOKEN")
+    ibmq_api_token = os.getenv("IBMQ_API_TOKEN")
 
     print("\n[DEBUG] Environment Variables:")
     print("FMP_API_KEY:", repr(fmp_api_key))
     print("IBM_CLOUD_API_KEY:", repr(ibm_cloud_api_key))
-    print("IBM_QUANTUM_API_TOKEN:", repr(ibm_quantum_api_token))
+    print("IBMQ_API_TOKEN:", repr(ibmq_api_token))
 
     validate_env_vars({
         key: value for key, value in {
             "FMP_API_KEY": fmp_api_key,
             "IBM_CLOUD_API_KEY": ibm_cloud_api_key,
-            "IBM_QUANTUM_API_TOKEN": ibm_quantum_api_token
+            "IBMQ_API_TOKEN": ibmq_api_token
         }.items() if value is not None
     })
 
@@ -53,14 +53,14 @@ def load_api_keys(dotenv_file: Optional[str] = None):
                 fmp_api_key = f.read().strip()
             with open('/mnt/secrets-store/IBM_CLOUD_API_KEY', 'r') as f:
                 ibm_cloud_api_key = f.read().strip()
-            with open('/mnt/secrets-store/IBM_QUANTUM_API_TOKEN', 'r') as f:
-                ibm_quantum_api_token = f.read().strip()
+            with open('/mnt/secrets-store/IBMQ_API_TOKEN', 'r') as f:
+                ibmq_api_token = f.read().strip()
         except Exception as e:
             log_step("Config", f"Failed to load IBM Cloud secrets: {str(e)}")
             raise EnvironmentError("IBM Cloud secrets missing or inaccessible")
 
     log_step("Config", "All API keys loaded successfully")
-    return fmp_api_key, ibm_cloud_api_key, ibm_quantum_api_token
+    return fmp_api_key, ibm_cloud_api_key, ibmq_api_token
 
 if __name__ == "__main__":
     try:
@@ -68,6 +68,6 @@ if __name__ == "__main__":
         print("\n✅ Keys loaded for test:")
         print("FMP_API_KEY:", keys[0][:6] + "..." if keys[0] else "MISSING")
         print("IBM_CLOUD_API_KEY:", keys[1][:6] + "..." if keys[1] else "MISSING")
-        print("IBM_QUANTUM_API_TOKEN:", keys[2][:6] + "..." if keys[2] else "MISSING")
+        print("IBMQ_API_TOKEN:", keys[2][:6] + "..." if keys[2] else "MISSING")
     except Exception as e:
         print("❌ Error:", e)
