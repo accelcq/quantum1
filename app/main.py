@@ -56,10 +56,7 @@ def log_step(step: str, detail: str):
     logging.info(f"{step}: {detail}")
 
 # Load API keys from environment variables or GitHub secrets
-FMP_API_KEY, IBM_CLOUD_API_KEY, IBM_QUANTUM_API_TOKEN = load_api_keys()
-
-# Rename IBM_CLOUD_API_TOKEN to IBMQ_API_TOKEN throughout this file for consistency
-IBMQ_API_TOKEN = IBM_CLOUD_API_TOKEN
+FMP_API_KEY, IBM_CLOUD_API_KEY, IBMQ_API_TOKEN = load_api_keys()
 
 # FastAPI app to expose logs via Swagger UI
 app = FastAPI()
@@ -203,9 +200,9 @@ def custom_docs():
 def check_ibm_keys():
     if not IBM_CLOUD_API_KEY:
         log_step("APIKeyCheck", "IBM_CLOUD_API_KEY is empty or not set.")
-    if not IBM_QUANTUM_API_TOKEN:
+    if not IBMQ_API_TOKEN:
         log_step("APIKeyCheck", "IBM_QUANTUM_API_TOKEN is empty or not set.")
-    if not IBM_CLOUD_API_KEY or not IBM_QUANTUM_API_TOKEN:
+    if not IBM_CLOUD_API_KEY or not IBMQ_API_TOKEN:
         raise HTTPException(status_code=401, detail="Invalid IBM Cloud or Quantum API Key")
     
     if not FMP_API_KEY or FMP_API_KEY == "FMP_API_KEY":
@@ -474,3 +471,9 @@ def ensure_classical_ann(symbol: str):
 # --- Import and include router for quantum training ---
 from .Qtraining import router as qtraining_router
 app.include_router(qtraining_router)
+# --- Import and include router for quantum simulator prediction ---
+from .Qsimulator import router as qsimulator_router
+app.include_router(qsimulator_router)
+# --- Import and include router for quantum machine prediction ---
+from .Qmachine import router as qmachine_router
+app.include_router(qmachine_router)
