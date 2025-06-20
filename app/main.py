@@ -28,7 +28,7 @@ from qiskit_aer import Aer  # type: ignore
 from qiskit.circuit import Parameter # type: ignore
 from qiskit_machine_learning.algorithms import VQR # type: ignore
 from qiskit.circuit import ParameterVector  # type: ignore
-from qiskit_ibm_runtime import Estimator  # type: ignore
+#from qiskit_ibm_runtime import Estimator  # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
 import sys
@@ -150,7 +150,7 @@ def predict_stock(current_user: dict[str, Any] = Depends(get_current_user)):
     qc = QuantumCircuit(1, 1)
     qc.h(0)  # Superposition: simulates uncertainty in stock movement
     qc.measure(0, 0)
-    backend = Aer.get_backend('qasm_simulator')  # type: ignore
+    backend = AerSimulator() #Aer.get_backend('qasm_simulator')  # type: ignore
     job = backend.run(qc, shots=100)
     result = job.result()
     counts = result.get_counts(qc)
