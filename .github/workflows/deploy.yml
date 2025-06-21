@@ -35,6 +35,15 @@ jobs:
         ibmcloud cr login
         echo "IBM Cloud CLI login successful."
         
+    - name: Debug IBM Cloud account and clusters
+      run: |
+        echo "Current account and resource group info:"
+        ibmcloud target
+        echo "Available resource groups:"
+        ibmcloud resource groups
+        echo "Available clusters:"
+        ibmcloud ks cluster ls
+
     - name: Set up Kubernetes CLI
       run: |
         ibmcloud plugin install kubernetes-service -f
@@ -111,7 +120,7 @@ jobs:
       run: |
         set -e
         echo "🔍 Checking rollout status for frontend..."
-        kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE || kubectl rollout undo deployment/quantum1-frontend -n $NAMESPACE
+        kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE || kubectl rollout.undo deployment/quantum1-frontend -n $NAMESPACE
         echo "🔍 Checking rollout status for backend..."
         kubectl rollout status deployment/quantum1-backend -n $NAMESPACE || kubectl rollout.undo deployment/quantum1-backend -n $NAMESPACE
 
