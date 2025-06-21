@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ github.sha }}
-      NAMESPACE: ${{ secrets.NAMESPACE }}
-      REGION: ${{ secrets.REGION }}
-      RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
-      CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
+      NAMESPACE: ${{ secrets.IBM_CLOUD_NAMESPACE }}
+      REGION: ${{ secrets.IBM_CLOUD_REGION }}
+      RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
+      CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
       IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
       IBMQ_API_TOKEN: ${{ secrets.IBMQ_API_TOKEN }}
 
