@@ -16,11 +16,18 @@ spec:
     spec:
       containers:
       - name: quantum1-backend
+      print: "Deploying Quantum1 Backend : ${IMAGE_TAG}"
+      # Ensure the image tag is set correctly
+      # This should match the IMAGE_TAG used in your workflow
+      # and should be updated in the workflow file as well
+      # to ensure consistency across deployments.
         image: us.icr.io/quantum1space/quantum1-backend:${IMAGE_TAG}
         ports:
         - containerPort: 8080
         env:
         - name: IBMQ_API_TOKEN
+          # Ensure the secret name and key match your Kubernetes secret
+          print: "Setting IBMQ_API_TOKEN from secret : ${IBMQ_API_TOKEN}"
           valueFrom:
             secretKeyRef:
               name: quantum1-secrets
