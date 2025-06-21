@@ -17,13 +17,23 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Install IBM Cloud CLI and Login
-      uses: ibm-actions/ibmcloud-login@v1
-      with:
-        apiKey: ${{ secrets.IBM_CLOUD_API_KEY }}
-        region: ${{ secrets.REGION }}
-        resourceGroup: ${{ secrets.RESOURCE_GROUP }}
-        exportCredential: true
+    - name: Install IBM Cloud CLI
+      uses: ibm-cloud/setup-ibmcloud-cli@v1
+
+    - name: IBM Cloud CLI Login
+      run: |
+        ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "${{ secrets.REGION }}" -g "${{ secrets.RESOURCE_GROUP }}"
+
+        - name: Set up IBM Cloud Container Registry
+        ibmcloud cr region-set "${{ secrets.REGION }}"
+        ibmcloud cr login
+        echo "IBM Cloud CLI login successful."
+        
+    - name: Set up Kubernetes CLI
+      run: |
+        ibmcloud plugin install kubernetes-service -f
+        ibmcloud ks cluster-config --cluster ${{ secrets.CLUSTER_NAME }} --export
+        echo "KUBECONFIG environment variable set to: $KUBECONFIG"
 
     - name: Configure access to IBM Kubernetes Service
       run: |
