@@ -17,13 +17,17 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Set up IBM Cloud CLI
-      uses: IBM/cloud-native-toolkit-action@v1.1.0
+    - name: Install IBM Cloud CLI and Login
+      uses: ibm-actions/ibmcloud-login@v1
       with:
-        ibmcloud_api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+        apiKey: ${{ secrets.IBM_CLOUD_API_KEY }}
         region: ${{ secrets.REGION }}
-        resource_group: ${{ secrets.RESOURCE_GROUP }}
-        cluster_name: ${{ secrets.CLUSTER_NAME }}
+        resourceGroup: ${{ secrets.RESOURCE_GROUP }}
+        exportCredential: true
+
+    - name: Configure access to IBM Kubernetes Service
+      run: |
+        ibmcloud ks cluster config --cluster ${{ secrets.CLUSTER_NAME }}
 
     - name: Install tools
       run: sudo apt-get update && sudo apt-get install -y gettext curl
