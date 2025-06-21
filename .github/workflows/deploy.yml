@@ -125,12 +125,11 @@ jobs:
         run: |
           sed -i "s|image: us.icr.io/quantum1space/quantum1-backend:${IMAGE_TAG}|image: us.icr.io/quantum1space/quantum1-backend:$IMAGE_TAG|g" ${BACKEND_DEPLOYMENT_FILE}
 
-          
       - name: Apply Frontend Deployment
         run: |
           echo "Applying frontend deployment to namespace $NAMESPACE"
           kubectl apply -f frontend/quantum1-frontend-deployment.yaml -n $NAMESPACE
-          
+
       - name: Wait for Frontend Deployment to be Ready
         run: |
           kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE
@@ -163,6 +162,7 @@ jobs:
           kubectl apply -f frontend/quantum1-frontend-service.yaml -n $NAMESPACE
 
       - name: Cleanup old frontend images (keep only the latest)
+        if: ${{ success() }}
         run: |
           images=$(ibmcloud cr images --restrict $REPO_FRONTEND --format '{{.Repository}}:{{.Tag}} {{.Created}}' | sort -k2 -r)
           latest=$(echo "$images" | head -n 1 | awk '{print $1}')
@@ -174,6 +174,7 @@ jobs:
           done
 
       - name: Cleanup old backend images (keep only the latest)
+        if: ${{ success() }}
         run: |
           images=$(ibmcloud cr images --restrict $REPO_BACKEND --format '{{.Repository}}:{{.Tag}} {{.Created}}' | sort -k2 -r)
           latest=$(echo "$images" | head -n 1 | awk '{print $1}')
