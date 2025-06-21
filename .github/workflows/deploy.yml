@@ -38,7 +38,7 @@ jobs:
     - name: Set up Kubernetes CLI
       run: |
         ibmcloud plugin install kubernetes-service -f
-        ibmcloud ks cluster-config --cluster $CLUSTER_NAME --export
+        ibmcloud ks cluster config --cluster $CLUSTER_NAME --export
         echo "KUBECONFIG environment variable set to: $KUBECONFIG"
 
     - name: Configure access to IBM Kubernetes Service
