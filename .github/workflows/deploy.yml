@@ -17,8 +17,8 @@ env:
   CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
   NAMESPACE: ${{ secrets.IBM_CLOUD_NAMESPACE }}
   REGISTRY: us.icr.io
-  REPO_FRONTEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/frontend
-  REPO_BACKEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/backend
+  REPO_FRONTEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/quantum1-frontend
+  REPO_BACKEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/quantum1-backend
   REACT_APP_BACKEND_URL: ${{ secrets.REACT_APP_BACKEND_URL }}
   FRONTEND_IMAGE_NAME: quantum1-frontend
   BACKEND_IMAGE_NAME: quantum1-backend
