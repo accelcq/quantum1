@@ -3,9 +3,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: quantum1-backend
-  namespace: quantum1space
 spec:
   replicas: 1
+  progressDeadlineSeconds: 300
   selector:
     matchLabels:
       app: quantum1-backend
@@ -13,15 +13,18 @@ spec:
     metadata:
       labels:
         app: quantum1-backend
+      annotations:
+        restarted-at: "{{timestamp}}"
     spec:
       containers:
       - name: quantum1-backend
-        image: us.icr.io/quantum1space/quantum1-backend:latest
+        image: us.icr.io/quantum1space/quantum1-backend:bce7e48ce6d8771be9659056475b686521945162
+        imagePullPolicy: Always
         ports:
-        - containerPort: 8080
-        env:
-        - name: IBMQ_API_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: quantum1-secrets
-              key: IBMQ_API_TOKEN
+        - containerPort: 5000
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10

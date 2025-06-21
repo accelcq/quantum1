@@ -125,7 +125,7 @@ jobs:
 
       - name: Wait for Frontend Deployment to be Ready
         run: |
-          kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE
+          kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE --timeout=300s
 
       - name: Print after frontend deployment
         run: |
@@ -139,8 +139,8 @@ jobs:
           
       - name: Wait for Backend Deployment to be Ready
         run: |
-          kubectl rollout status deployment/quantum1-backend -n $NAMESPACE
-
+          kubectl rollout status deployment/quantum1-backend -n $NAMESPACE --timeout=300s
+ 
       - name: Print after backend deployment
         run: |
           echo "Backend deployment applied"
