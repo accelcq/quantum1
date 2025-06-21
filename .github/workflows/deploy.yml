@@ -112,8 +112,8 @@ jobs:
     - name: Render and deploy frontend
       run: |
         export IMAGE_TAG=$IMAGE_TAG
-        envsubst < quantum1-frontend-deployment.yaml > rendered_frontend.yaml
-        envsubst < quantum1-frontend-service.yaml > rendered_frontend_service.yaml
+        envsubst < frontend/quantum1-frontend-deployment.yaml > rendered_frontend.yaml
+        envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
         kubectl apply -f rendered_frontend.yaml -n $NAMESPACE
         kubectl apply -f rendered_frontend_service.yaml -n $NAMESPACE
 
