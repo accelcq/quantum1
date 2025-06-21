@@ -35,18 +35,24 @@ jobs:
         ibmcloud cr login
         echo "IBM Cloud CLI login successful."
         
+    - name: Install IBM Cloud CLI plugins
+      run: |
+        ibmcloud plugin install container-service -f
+        ibmcloud plugin install kubernetes-service -f
+
     - name: Debug IBM Cloud account and clusters
       run: |
         echo "Current account and resource group info:"
         ibmcloud target
         echo "Available resource groups:"
         ibmcloud resource groups
+        echo "Available plugins:"
+        ibmcloud plugin list
         echo "Available clusters:"
-        ibmcloud ks cluster ls
+        ibmcloud ks cluster ls || echo "ks plugin not available"
 
     - name: Set up Kubernetes CLI
       run: |
-        ibmcloud plugin install kubernetes-service -f
         ibmcloud ks cluster config --cluster $CLUSTER_NAME --export
         echo "KUBECONFIG environment variable set to: $KUBECONFIG"
 
