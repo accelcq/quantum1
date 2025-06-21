@@ -5,7 +5,6 @@ metadata:
   name: quantum1-backend
 spec:
   replicas: 1
-  progressDeadlineSeconds: 300
   selector:
     matchLabels:
       app: quantum1-backend
@@ -13,18 +12,16 @@ spec:
     metadata:
       labels:
         app: quantum1-backend
-      annotations:
-        restarted-at: "{{timestamp}}"
     spec:
       containers:
       - name: quantum1-backend
-        image: us.icr.io/quantum1space/quantum1-backend:bce7e48ce6d8771be9659056475b686521945162
+        image: us.icr.io/quantum1space/quantum1-backend:${IMAGE_TAG}
         imagePullPolicy: Always
         ports:
-        - containerPort: 5000
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 5000
-          initialDelaySeconds: 5
-          periodSeconds: 10
+        - containerPort: 8080
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "🚀 Starting AccelCQ Quantum1 backend API with uvicorn...";
+            uvicorn app.main:app --host 0.0.0.0 --port 8080
+            echo "🌍 Access AccelCQ Quantum1 backend via: http://$(hostname -i):8080/docs";
