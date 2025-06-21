@@ -17,8 +17,7 @@ spec:
     spec:
       containers:
         - name: quantum1-frontend
-          print: "Deploying Quantum1 Frontend : ${IMAGE_TAG}"
-          image: us.icr.io/quantum1space/quantum1-frontend:${IMAGE_TAG}
+          image: us.icr.io/quantum1space/quantum1-frontend:latest
           ports:
             - containerPort: 80
 ---

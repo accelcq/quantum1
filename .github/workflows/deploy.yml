@@ -101,36 +101,22 @@ jobs:
       - name: Build and Push Frontend Image
         working-directory: ./frontend
         run: |
-          echo "Building frontend image: $REGISTRY/$REPO_FRONTEND:$IMAGE_TAG"
-          docker build -t $REGISTRY/$REPO_FRONTEND:$IMAGE_TAG .
-          echo "Pushing frontend image: $REGISTRY/$REPO_FRONTEND:$IMAGE_TAG"
-          docker push $REGISTRY/$REPO_FRONTEND:$IMAGE_TAG
+          echo "Building frontend image: $REGISTRY/$REPO_FRONTEND:latest"
+          docker build -t $REGISTRY/$REPO_FRONTEND:latest .
+          echo "Pushing frontend image: $REGISTRY/$REPO_FRONTEND:latest"
+          docker push $REGISTRY/$REPO_FRONTEND:latest
+          echo "Frontend image pushed: $REGISTRY/$REPO_FRONTEND:latest"
         continue-on-error: false
-
-      - name: Patch Frontend Deployment YAML with new image tag
-        run: |
-          sed -i "s|image: us.icr.io/quantum1space/quantum1-frontend:${IMAGE_TAG}|image: us.icr.io/quantum1space/quantum1-frontend:$IMAGE_TAG|g" frontend/${FRONTEND_DEPLOYMENT_FILE}
 
       - name: Build and Push Backend Image
         working-directory: .
         run: |
-          echo "Building backend image: $REGISTRY/$REPO_BACKEND:$IMAGE_TAG"
-          docker build -t $REGISTRY/$REPO_BACKEND:$IMAGE_TAG -f Dockerfile .
-          echo "Pushing backend image: $REGISTRY/$REPO_BACKEND:$IMAGE_TAG"
-          docker push $REGISTRY/$REPO_BACKEND:$IMAGE_TAG
-          echo "Backend image pushed: $REGISTRY/$REPO_BACKEND:$IMAGE_TAG"
+          echo "Building backend image: $REGISTRY/$REPO_BACKEND:latest"
+          docker build -t $REGISTRY/$REPO_BACKEND:latest -f Dockerfile .
+          echo "Pushing backend image: $REGISTRY/$REPO_BACKEND:latest"
+          docker push $REGISTRY/$REPO_BACKEND:latest
+          echo "Backend image pushed: $REGISTRY/$REPO_BACKEND:latest"
         continue-on-error: false
-
-      - name: Patch Backend Deployment YAML with new image tag
-        run: |
-          sed -i "s|image: us.icr.io/quantum1space/quantum1-backend:${IMAGE_TAG}|image: us.icr.io/quantum1space/quantum1-backend:$IMAGE_TAG|g" ${BACKEND_DEPLOYMENT_FILE}
-
-      - name: Patch all deployment YAMLs with new image tag
-        run: |
-          # Patch all deployment YAMLs that use ${IMAGE_TAG} for robustness
-          find . -type f -name "*deployment.yaml" | while read file; do
-            sed -i "s|\${IMAGE_TAG}|$IMAGE_TAG|g" "$file"
-          done
 
       - name: Apply Frontend Deployment
         run: |
