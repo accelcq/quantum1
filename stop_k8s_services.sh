@@ -18,6 +18,7 @@ fi
 NAMESPACE="${IBM_CLOUD_NAMESPACE:-quantum1space}"
 REGION="${IBM_CLOUD_REGION:-us-south}"
 REGISTRY="us.icr.io"
+KEEP_N=1  # Number of most recent images to keep per repo
 
 # IMAGE_TAG must be set (commit SHA from CI/CD or manual export)
 if [ -z "$IMAGE_TAG" ]; then
@@ -49,11 +50,37 @@ ibmcloud cr login
 echo "🔎 Checking IBM Cloud Container Registry quota..."
 ibmcloud cr quota
 
-# Remove backend and frontend images for this tag
-for img in quantum1-backend quantum1-frontend; do
-  full_image="$REGISTRY/$NAMESPACE/$img:$IMAGE_TAG"
-  echo "🧹 Attempting to remove image: $full_image"
-  ibmcloud cr image-rm "$full_image" || echo "(Image $full_image not found or already deleted)"
-done
+# Function to delete old images, keeping the last N and always deleting the failed IMAGE_TAG if present
+cleanup_images() {
+  local repo=$1
+  echo "🧹 Checking images for $repo..."
+  # List images sorted by creation date (oldest last)
+  images=$(ibmcloud cr images --format json | jq -r \
+    --arg repo "$REGISTRY/$NAMESPACE/$repo" \
+    '.[] | select(.repository==$repo) | {tag: .tag, created: .created, digest: .digest} | @base64' | sort)
+  # Get tags sorted by creation (oldest last)
+  tags=( $(echo "$images" | base64 --decode | jq -r '.tag') )
+  digests=( $(echo "$images" | base64 --decode | jq -r '.digest') )
+  total=${#tags[@]}
+  # Always delete the failed IMAGE_TAG if present
+  for i in "${!tags[@]}"; do
+    if [[ "${tags[$i]}" == "$IMAGE_TAG" ]]; then
+      echo "🧹 Deleting failed image: $repo:${tags[$i]}"
+      ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:${tags[$i]}" || echo "(Image $repo:${tags[$i]} not found or already deleted)"
+    fi
+  done
+  # Delete images older than the last $KEEP_N (excluding IMAGE_TAG)
+  if (( total > KEEP_N )); then
+    for i in $(seq 0 $((total-KEEP_N-1))); do
+      if [[ "${tags[$i]}" != "$IMAGE_TAG" ]]; then
+        echo "🧹 Deleting old image: $repo:${tags[$i]}"
+        ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:${tags[$i]}" || echo "(Image $repo:${tags[$i]} not found or already deleted)"
+      fi
+    done
+  fi
+}
+
+cleanup_images quantum1-backend
+cleanup_images quantum1-frontend
 
 echo "✅ Image cleanup complete."
