@@ -53,12 +53,12 @@ jobs:
 
     - name: Set up Kubernetes CLI
       run: |
-        ibmcloud ks cluster config --cluster $CLUSTER_NAME
+        ibmcloud ks cluster config --cluster "$CLUSTER_NAME"
         echo "KUBECONFIG environment variable set to: $KUBECONFIG"
 
     - name: Configure access to IBM Kubernetes Service
       run: |
-        ibmcloud ks cluster config --cluster $CLUSTER_NAME
+        ibmcloud ks cluster config --cluster "$CLUSTER_NAME"
 
     - name: Install tools
       run: sudo apt-get update && sudo apt-get install -y gettext curl
