@@ -1,12 +1,10 @@
 # quantum1-frontend-deployment.yaml
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: quantum1-frontend
 spec:
   replicas: 1
-  progressDeadlineSeconds: 300
   selector:
     matchLabels:
       app: quantum1-frontend
@@ -14,8 +12,6 @@ spec:
     metadata:
       labels:
         app: quantum1-frontend
-      annotations:
-        restarted-at: "{{timestamp}}"
     spec:
       containers:
       - name: quantum1-frontend
@@ -23,9 +19,9 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 80
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 80
-          initialDelaySeconds: 5
-          periodSeconds: 10
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            echo "🚀 Starting frontend service with npm...";
+            echo "🌍 Access it via: http://$(hostname -i):80";
+            npm start
