@@ -12,32 +12,37 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_TAG: ${{ github.sha }}
+      NAMESPACE: ${{ secrets.NAMESPACE }}
+      REGION: ${{ secrets.REGION }}
+      RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+      CLUSTER_NAME: ${{ secrets.CLUSTER_NAME }}
+      IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+      IBMQ_API_TOKEN: ${{ secrets.IBMQ_API_TOKEN }}
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
     - name: Install IBM Cloud CLI
-      uses: ibm-cloud/setup-ibmcloud-cli@v1
+      run: |
+        curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
 
     - name: IBM Cloud CLI Login
       run: |
-        ibmcloud login --apikey "${{ secrets.IBM_CLOUD_API_KEY }}" -r "${{ secrets.REGION }}" -g "${{ secrets.RESOURCE_GROUP }}"
-
-        - name: Set up IBM Cloud Container Registry
-        ibmcloud cr region-set "${{ secrets.REGION }}"
+        ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$REGION" -g "$RESOURCE_GROUP"
+        ibmcloud cr region-set "$REGION"
         ibmcloud cr login
         echo "IBM Cloud CLI login successful."
         
     - name: Set up Kubernetes CLI
       run: |
         ibmcloud plugin install kubernetes-service -f
-        ibmcloud ks cluster-config --cluster ${{ secrets.CLUSTER_NAME }} --export
+        ibmcloud ks cluster-config --cluster $CLUSTER_NAME --export
         echo "KUBECONFIG environment variable set to: $KUBECONFIG"
 
     - name: Configure access to IBM Kubernetes Service
       run: |
-        ibmcloud ks cluster config --cluster ${{ secrets.CLUSTER_NAME }}
+        ibmcloud ks cluster config --cluster $CLUSTER_NAME
 
     - name: Install tools
       run: sudo apt-get update && sudo apt-get install -y gettext curl
@@ -60,14 +65,14 @@ jobs:
 
     - name: Apply backend manifests
       run: |
-        kubectl apply -f rendered_backend.yaml -n ${{ secrets.NAMESPACE }}
-        kubectl apply -f rendered_backend_service.yaml -n ${{ secrets.NAMESPACE }}
+        kubectl apply -f rendered_backend.yaml -n $NAMESPACE
+        kubectl apply -f rendered_backend_service.yaml -n $NAMESPACE
 
     - name: Wait for backend IP and set frontend env
       run: |
         echo "⏳ Waiting for backend service external IP..."
         for i in {1..30}; do
-          BACKEND_IP=$(kubectl get svc quantum1-backend-service -n ${{ secrets.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+          BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
           if [ ! -z "$BACKEND_IP" ]; then
             echo "✅ Backend IP: $BACKEND_IP"
             break
@@ -90,29 +95,29 @@ jobs:
 
     - name: Render and deploy frontend
       run: |
-        export IMAGE_TAG=${{ github.sha }}
+        export IMAGE_TAG=$IMAGE_TAG
         envsubst < quantum1-frontend-deployment.yaml > rendered_frontend.yaml
         envsubst < quantum1-frontend-service.yaml > rendered_frontend_service.yaml
-        kubectl apply -f rendered_frontend.yaml -n ${{ secrets.NAMESPACE }}
-        kubectl apply -f rendered_frontend_service.yaml -n ${{ secrets.NAMESPACE }}
+        kubectl apply -f rendered_frontend.yaml -n $NAMESPACE
+        kubectl apply -f rendered_frontend_service.yaml -n $NAMESPACE
 
     - name: Restart deployments
       run: |
-        kubectl rollout restart deployment/quantum1-frontend -n ${{ secrets.NAMESPACE }}
-        kubectl rollout restart deployment/quantum1-backend -n ${{ secrets.NAMESPACE }}
+        kubectl rollout restart deployment/quantum1-frontend -n $NAMESPACE
+        kubectl rollout restart deployment/quantum1-backend -n $NAMESPACE
 
     - name: Check rollout status and fallback on failure
       run: |
         set -e
         echo "🔍 Checking rollout status for frontend..."
-        kubectl rollout status deployment/quantum1-frontend -n ${{ secrets.NAMESPACE }} || kubectl rollout undo deployment/quantum1-frontend -n ${{ secrets.NAMESPACE }}
+        kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE || kubectl rollout undo deployment/quantum1-frontend -n $NAMESPACE
         echo "🔍 Checking rollout status for backend..."
-        kubectl rollout status deployment/quantum1-backend -n ${{ secrets.NAMESPACE }} || kubectl rollout undo deployment/quantum1-backend -n ${{ secrets.NAMESPACE }}
+        kubectl rollout status deployment/quantum1-backend -n $NAMESPACE || kubectl rollout.undo deployment/quantum1-backend -n $NAMESPACE
 
     - name: Health Check for Services
       run: |
-        FRONTEND_IP=$(kubectl get svc quantum1-frontend-service -n ${{ secrets.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-        BACKEND_IP=$(kubectl get svc quantum1-backend-service -n ${{ secrets.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        FRONTEND_IP=$(kubectl get svc quantum1-frontend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
         echo "🌐 Frontend: http://$FRONTEND_IP"
         echo "🌐 Backend: http://$BACKEND_IP:8080/docs"
@@ -131,29 +136,29 @@ jobs:
 
     - name: Debug Service Endpoints
       run: |
-        echo "Getting service endpoints in namespace ${{ secrets.NAMESPACE }}"
-        kubectl get svc -n ${{ secrets.NAMESPACE }}
+        echo "Getting service endpoints in namespace $NAMESPACE"
+        kubectl get svc -n $NAMESPACE
 
     - name: Print Backend Logs (on failure)
       if: ${{ failure() }}
       run: |
         echo "Printing backend logs on failure"
-        kubectl logs -l app=quantum1-backend -n ${{ secrets.NAMESPACE }} || true
+        kubectl logs -l app=quantum1-backend -n $NAMESPACE || true
 
     - name: Print Frontend Logs (on failure)
       if: ${{ failure() }}
       run: |
         echo "Printing frontend logs on failure"
-        kubectl logs -l app=quantum1-frontend -n ${{ secrets.NAMESPACE }} || true
+        kubectl logs -l app=quantum1-frontend -n $NAMESPACE || true
 
     - name: Print Error Logs (on failure)
       if: ${{ failure() }}
       run: |
         echo "Printing all pods:"
-        kubectl get pods -n ${{ secrets.NAMESPACE }} || true
+        kubectl get pods -n $NAMESPACE || true
         echo "Describing all pods:"
-        kubectl describe pods -n ${{ secrets.NAMESPACE }} || true
+        kubectl describe pods -n $NAMESPACE || true
         echo "Backend logs:"
-        kubectl logs -l app=quantum1-backend -n ${{ secrets.NAMESPACE }} --tail=100 || true
+        kubectl logs -l app=quantum1-backend -n $NAMESPACE --tail=100 || true
         echo "Frontend logs:"
-        kubectl logs -l app=quantum1-frontend -n ${{ secrets.NAMESPACE }} --tail=100 || true
+        kubectl logs -l app=quantum1-frontend -n $NAMESPACE --tail=100 || true
