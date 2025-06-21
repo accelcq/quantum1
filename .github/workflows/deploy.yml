@@ -125,6 +125,13 @@ jobs:
         run: |
           sed -i "s|image: us.icr.io/quantum1space/quantum1-backend:${IMAGE_TAG}|image: us.icr.io/quantum1space/quantum1-backend:$IMAGE_TAG|g" ${BACKEND_DEPLOYMENT_FILE}
 
+      - name: Patch all deployment YAMLs with new image tag
+        run: |
+          # Patch all deployment YAMLs that use ${IMAGE_TAG} for robustness
+          find . -type f -name "*deployment.yaml" | while read file; do
+            sed -i "s|\${IMAGE_TAG}|$IMAGE_TAG|g" "$file"
+          done
+
       - name: Apply Frontend Deployment
         run: |
           echo "Applying frontend deployment to namespace $NAMESPACE"
