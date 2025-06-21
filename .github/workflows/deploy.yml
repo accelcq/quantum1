@@ -6,203 +6,140 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
-
-env:
-  # Environment variables for IBM Cloud and Kubernetes
-  IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}  
-  IBMQ_API_TOKEN: ${{ secrets.IBMQ_API_TOKEN }}
-  REGION: ${{ secrets.IBM_CLOUD_REGION }}
-  RESOURCE_GROUP: ${{ secrets.IBM_CLOUD_RESOURCE_GROUP }}
-  CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
-  NAMESPACE: ${{ secrets.IBM_CLOUD_NAMESPACE }}
-  REGISTRY: us.icr.io
-  REPO_FRONTEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/quantum1-frontend
-  REPO_BACKEND: ${{ secrets.IBM_CLOUD_NAMESPACE }}/quantum1-backend
-  REACT_APP_BACKEND_URL: ${{ secrets.REACT_APP_BACKEND_URL }}
-  FRONTEND_IMAGE_NAME: quantum1-frontend
-  BACKEND_IMAGE_NAME: quantum1-backend
-  FRONTEND_DEPLOYMENT_FILE: quantum1-frontend-deployment.yaml
-  BACKEND_DEPLOYMENT_FILE: quantum1-backend-deployment.yaml
-  FRONTEND_SERVICE_FILE: quantum1-frontend-service.yaml
-  BACKEND_SERVICE_FILE: quantum1-backend-service.yaml
-  IMAGE_TAG: ${{ github.sha }}
-
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_TAG: ${{ github.sha }}
 
     steps:
-      - name: Print Environment Variables
-        run: |
-          echo "REGION: $REGION"
-          echo "RESOURCE_GROUP: $RESOURCE_GROUP"
-          echo "CLUSTER_NAME: $CLUSTER_NAME"
-          echo "NAMESPACE: $NAMESPACE"
-          echo "REGISTRY: $REGISTRY"
-          echo "REPO_FRONTEND: $REPO_FRONTEND"
-          echo "REPO_BACKEND: $REPO_BACKEND"
+    - name: Checkout repository
+      uses: actions/checkout@v3
 
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Set up IBM Cloud CLI
+      uses: IBM/cloud-native-toolkit-action@v1.1.0
+      with:
+        ibmcloud_api_key: ${{ secrets.IBM_CLOUD_API_KEY }}
+        region: ${{ secrets.REGION }}
+        resource_group: ${{ secrets.RESOURCE_GROUP }}
+        cluster_name: ${{ secrets.CLUSTER_NAME }}
 
-      - name: Print after checkout
-        run: echo "Checked out repository to $PWD"
+    - name: Install tools
+      run: sudo apt-get update && sudo apt-get install -y gettext curl
 
-      - name: Install IBM Cloud CLI
-        run: |
-          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+    - name: Print Environment Variables
+      run: |
+        echo "🔎 Verifying environment variables..."
+        echo "REGION: ${REGION:-MISSING}"
+        echo "RESOURCE_GROUP: ${RESOURCE_GROUP:-MISSING}"
+        echo "CLUSTER_NAME: ${CLUSTER_NAME:-MISSING}"
+        echo "NAMESPACE: ${NAMESPACE:-MISSING}"
+        echo "IMAGE_TAG: ${IMAGE_TAG:-MISSING}"
 
-      - name: Create .env file
-        run: |
-          echo "REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}" > frontend/.env
-          echo "Created .env file with backend URL"
-          ibmcloud plugin install container-registry container-service -f
+    - name: Render deployment files
+      run: |
+        export IMAGE_TAG=${{ github.sha }}
+        export TIMESTAMP=$(date +%s)
+        envsubst < quantum1-backend-deployment.yaml > rendered_backend.yaml
+        envsubst < quantum1-backend-service.yaml > rendered_backend_service.yaml
 
-      - name: Print after IBM Cloud CLI install
-        run: ibmcloud --version
+    - name: Apply backend manifests
+      run: |
+        kubectl apply -f rendered_backend.yaml -n ${{ secrets.NAMESPACE }}
+        kubectl apply -f rendered_backend_service.yaml -n ${{ secrets.NAMESPACE }}
 
-      - name: Authenticate with IBM Cloud
-        env:
-          IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
-        run: |
-          echo "Logging in to IBM Cloud with REGION=$REGION and RESOURCE_GROUP=$RESOURCE_GROUP"
-          ibmcloud login --apikey $IBM_CLOUD_API_KEY -r $REGION -g $RESOURCE_GROUP
-          ibmcloud cr login
-          ibmcloud ks cluster config --cluster $CLUSTER_NAME
-      - name: Create IBM CR image pull secret in cluster
-        run: |
-          kubectl create secret docker-registry icr-secret \
-            --docker-server=us.icr.io \
-            --docker-username=iamapikey \
-            --docker-password="$IBM_CLOUD_API_KEY" \
-            --docker-email=ranjantxusa@gmail.com \
-            --from-literal=IBMQ_API_TOKEN="$IBMQ_API_TOKEN" \
-            -n $NAMESPACE || echo "Secret already exists"
+    - name: Wait for backend IP and set frontend env
+      run: |
+        echo "⏳ Waiting for backend service external IP..."
+        for i in {1..30}; do
+          BACKEND_IP=$(kubectl get svc quantum1-backend-service -n ${{ secrets.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
+          if [ ! -z "$BACKEND_IP" ]; then
+            echo "✅ Backend IP: $BACKEND_IP"
+            break
+          fi
+          echo "Waiting... ($i)"; sleep 5
+        done
+        if [ -z "$BACKEND_IP" ]; then
+          echo "❌ Failed to get backend service IP"; exit 1
+        fi
+        echo "REACT_APP_BACKEND_URL=http://$BACKEND_IP:8080" > frontend/.env.production
+        cat frontend/.env.production
 
-      - name: Patch default serviceaccount with imagePullSecret
-        run: |
-          kubectl patch serviceaccount default -n $NAMESPACE \
-            -p '{"imagePullSecrets":[{"name":"icr-secret"}]}'
+    - name: Build and push frontend Docker image
+      run: |
+        cd frontend
+        npm install
+        npm run build
+        docker build -t us.icr.io/quantum1space/quantum1-frontend:${{ github.sha }} .
+        docker push us.icr.io/quantum1space/quantum1-frontend:${{ github.sha }}
 
-      - name: Print after IBM Cloud authentication
-        run: |
-          echo "Logged in to IBM Cloud"
-          ibmcloud target -r $REGION -g $RESOURCE_GROUP
-          ibmcloud ks cluster config --cluster $CLUSTER_NAME
+    - name: Render and deploy frontend
+      run: |
+        export IMAGE_TAG=${{ github.sha }}
+        envsubst < quantum1-frontend-deployment.yaml > rendered_frontend.yaml
+        envsubst < quantum1-frontend-service.yaml > rendered_frontend_service.yaml
+        kubectl apply -f rendered_frontend.yaml -n ${{ secrets.NAMESPACE }}
+        kubectl apply -f rendered_frontend_service.yaml -n ${{ secrets.NAMESPACE }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+    - name: Restart deployments
+      run: |
+        kubectl rollout restart deployment/quantum1-frontend -n ${{ secrets.NAMESPACE }}
+        kubectl rollout restart deployment/quantum1-backend -n ${{ secrets.NAMESPACE }}
 
-      - name: Print after Docker Buildx setup
-        run: docker buildx version
+    - name: Check rollout status and fallback on failure
+      run: |
+        set -e
+        echo "🔍 Checking rollout status for frontend..."
+        kubectl rollout status deployment/quantum1-frontend -n ${{ secrets.NAMESPACE }} || kubectl rollout undo deployment/quantum1-frontend -n ${{ secrets.NAMESPACE }}
+        echo "🔍 Checking rollout status for backend..."
+        kubectl rollout status deployment/quantum1-backend -n ${{ secrets.NAMESPACE }} || kubectl rollout undo deployment/quantum1-backend -n ${{ secrets.NAMESPACE }}
 
-      - name: Build and Push Frontend Image
-        working-directory: ./frontend
-        run: |
-          echo "Building frontend image: $REGISTRY/$REPO_FRONTEND:latest"
-          docker build -t $REGISTRY/$REPO_FRONTEND:latest .
-          echo "Pushing frontend image: $REGISTRY/$REPO_FRONTEND:latest"
-          docker push $REGISTRY/$REPO_FRONTEND:latest
-          echo "Frontend image pushed: $REGISTRY/$REPO_FRONTEND:latest"
-        continue-on-error: false
+    - name: Health Check for Services
+      run: |
+        FRONTEND_IP=$(kubectl get svc quantum1-frontend-service -n ${{ secrets.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        BACKEND_IP=$(kubectl get svc quantum1-backend-service -n ${{ secrets.NAMESPACE }} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 
-      - name: Build and Push Backend Image
-        working-directory: .
-        run: |
-          echo "Building backend image: $REGISTRY/$REPO_BACKEND:latest"
-          docker build -t $REGISTRY/$REPO_BACKEND:latest -f Dockerfile .
-          echo "Pushing backend image: $REGISTRY/$REPO_BACKEND:latest"
-          docker push $REGISTRY/$REPO_BACKEND:latest
-          echo "Backend image pushed: $REGISTRY/$REPO_BACKEND:latest"
-        continue-on-error: false
+        echo "🌐 Frontend: http://$FRONTEND_IP"
+        echo "🌐 Backend: http://$BACKEND_IP:8080/docs"
 
-      - name: Apply Frontend Deployment
-        run: |
-          echo "Applying frontend deployment to namespace $NAMESPACE"
-          kubectl apply -f frontend/quantum1-frontend-deployment.yaml -n $NAMESPACE
+        echo "🔎 Health checking backend..."
+        curl -sSf http://$BACKEND_IP:8080/health || echo "❌ Backend health check failed"
 
-      - name: Wait for Frontend Deployment to be Ready
-        run: |
-          kubectl rollout status deployment/quantum1-frontend -n $NAMESPACE --timeout=300s
+        echo "🔎 Health checking frontend..."
+        curl -sSf http://$FRONTEND_IP || echo "❌ Frontend health check failed"
 
-      - name: Print after frontend deployment
-        run: |
-          echo "Frontend deployment applied"
-          kubectl get deployment quantum1-frontend -n $NAMESPACE
+    - name: Deployment Summary
+      run: |
+        echo "✅ Quantum1 Deployment Complete."
+        echo "🚀 Frontend accessible at: http://$FRONTEND_IP"
+        echo "🔗 Backend API Docs: http://$BACKEND_IP:8080/docs"
 
-      - name: Apply Backend Deployment
-        run: |
-          echo "Applying backend deployment to namespace $NAMESPACE"
-          kubectl apply -f quantum1-backend-deployment.yaml -n $NAMESPACE
-          
-      - name: Wait for Backend Deployment to be Ready
-        run: |
-          kubectl rollout status deployment/quantum1-backend -n $NAMESPACE --timeout=300s
- 
-      - name: Print after backend deployment
-        run: |
-          echo "Backend deployment applied"
-          kubectl get deployment quantum1-backend -n $NAMESPACE
-          
-      - name: Apply Backend Service
-        run: |
-          kubectl apply -f quantum1-backend-service.yaml -n $NAMESPACE
+    - name: Debug Service Endpoints
+      run: |
+        echo "Getting service endpoints in namespace ${{ secrets.NAMESPACE }}"
+        kubectl get svc -n ${{ secrets.NAMESPACE }}
 
-      - name: Apply Frontend Service
-        run: |
-          kubectl apply -f frontend/quantum1-frontend-service.yaml -n $NAMESPACE
+    - name: Print Backend Logs (on failure)
+      if: ${{ failure() }}
+      run: |
+        echo "Printing backend logs on failure"
+        kubectl logs -l app=quantum1-backend -n ${{ secrets.NAMESPACE }} || true
 
-      - name: Cleanup old frontend images (keep only the latest)
-        if: ${{ success() }}
-        run: |
-          images=$(ibmcloud cr images --restrict $REPO_FRONTEND --format '{{.Repository}}:{{.Tag}} {{.Created}}' | sort -k2 -r)
-          latest=$(echo "$images" | head -n 1 | awk '{print $1}')
-          for img in $(echo "$images" | awk '{print $1}'); do
-            if [ "$img" != "$latest" ]; then
-              echo "Deleting old frontend image: $img"
-              ibmcloud cr image-rm $img || true
-            fi
-          done
+    - name: Print Frontend Logs (on failure)
+      if: ${{ failure() }}
+      run: |
+        echo "Printing frontend logs on failure"
+        kubectl logs -l app=quantum1-frontend -n ${{ secrets.NAMESPACE }} || true
 
-      - name: Cleanup old backend images (keep only the latest)
-        if: ${{ success() }}
-        run: |
-          images=$(ibmcloud cr images --restrict $REPO_BACKEND --format '{{.Repository}}:{{.Tag}} {{.Created}}' | sort -k2 -r)
-          latest=$(echo "$images" | head -n 1 | awk '{print $1}')
-          for img in $(echo "$images" | awk '{print $1}'); do
-            if [ "$img" != "$latest" ]; then
-              echo "Deleting old backend image: $img"
-              ibmcloud cr image-rm $img || true
-            fi
-          done
-      
-      - name: Debug Service Endpoints
-        run: |
-          echo "Getting service endpoints in namespace $NAMESPACE"
-          kubectl get svc -n $NAMESPACE
-
-      - name: Print Backend Logs (on failure)
-        if: ${{ failure() }}
-        run: |
-          echo "Printing backend logs on failure"
-          kubectl logs -l app=quantum1-backend -n $NAMESPACE || true
-
-      - name: Print Frontend Logs (on failure)
-        if: ${{ failure() }}
-        run: |
-          echo "Printing frontend logs on failure"
-          kubectl logs -l app=quantum1-frontend -n $NAMESPACE || true
-
-      - name: Print Error Logs (on failure)
-        if: ${{ failure() }}
-        run: |
-          echo "Printing all pods:"
-          kubectl get pods -n $NAMESPACE || true
-          echo "Describing all pods:"
-          kubectl describe pods -n $NAMESPACE || true
-          echo "Backend logs:"
-          kubectl logs -l app=quantum1-backend -n $NAMESPACE --tail=100 || true
-          echo "Frontend logs:"
-          kubectl logs -l app=quantum1-frontend -n $NAMESPACE --tail=100 || true
+    - name: Print Error Logs (on failure)
+      if: ${{ failure() }}
+      run: |
+        echo "Printing all pods:"
+        kubectl get pods -n ${{ secrets.NAMESPACE }} || true
+        echo "Describing all pods:"
+        kubectl describe pods -n ${{ secrets.NAMESPACE }} || true
+        echo "Backend logs:"
+        kubectl logs -l app=quantum1-backend -n ${{ secrets.NAMESPACE }} --tail=100 || true
+        echo "Frontend logs:"
+        kubectl logs -l app=quantum1-frontend -n ${{ secrets.NAMESPACE }} --tail=100 || true
