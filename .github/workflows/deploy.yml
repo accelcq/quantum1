@@ -178,3 +178,15 @@ jobs:
         kubectl logs -l app=quantum1-backend -n $NAMESPACE --tail=100 || true
         echo "Frontend logs:"
         kubectl logs -l app=quantum1-frontend -n $NAMESPACE --tail=100 || true
+
+    - name: Stop K8s Services and Clean Up Images (on failure)
+      if: ${{ failure() }}
+      run: |
+        chmod +x stop_k8s_services.sh run_stop_k8s_services_ci.sh
+        ./run_stop_k8s_services_ci.sh
+      env:
+        IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
+        IBM_CLOUD_NAMESPACE: ${{ secrets.IBM_CLOUD_NAMESPACE }}
+        IBM_CLOUD_REGION: ${{ secrets.IBM_CLOUD_REGION }}
+      shell: bash
