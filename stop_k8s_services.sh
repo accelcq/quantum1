@@ -50,37 +50,68 @@ ibmcloud cr login
 echo "🔎 Checking IBM Cloud Container Registry quota..."
 ibmcloud cr quota
 
+print_debug_info() {
+  echo "\n==== IBM Cloud Info ===="
+  ibmcloud login --apikey "$IBM_CLOUD_API_KEY" -r "$REGION" -g "${IBM_CLOUD_RESOURCE_GROUP:-$RESOURCE_GROUP}"
+  ibmcloud cr login
+  ibmcloud ks cluster config --cluster "${K8S_CLUSTER_NAME:-quantum1-cluster}"
+
+  echo "\n==== Kubernetes Cluster Info ===="
+  kubectl get nodes
+  kubectl get pods -n "$NAMESPACE" -o wide
+  kubectl get svc -n "$NAMESPACE"
+  kubectl describe deployment quantum1-frontend -n "$NAMESPACE"
+  kubectl get events -n "$NAMESPACE" --sort-by=.metadata.creationTimestamp
+
+  echo "\n==== IBM Cloud Container Registry Image Digests ===="
+  for img in quantum1-frontend quantum1-backend; do
+    echo "\nImage digests for $img:"
+    ibmcloud cr image-digests "$REGISTRY/$NAMESPACE/$img"
+  done
+
+  echo "\n==== Pod Logs (frontend) ===="
+  frontend_pods=$(kubectl get pods -n "$NAMESPACE" -l app=quantum1-frontend -o jsonpath='{.items[*].metadata.name}')
+  for pod in $frontend_pods; do
+    echo "\nLogs for pod: $pod"
+    kubectl logs "$pod" -n "$NAMESPACE" || echo "(No logs for $pod)"
+  done
+}
+
 # Function to delete old images, keeping the last N and always deleting the failed IMAGE_TAG if present
 cleanup_images() {
   local repo=$1
   echo "🧹 Checking images for $repo..."
-  # List images sorted by creation date (oldest last)
-  images=$(ibmcloud cr images --format json | jq -r \
-    --arg repo "$REGISTRY/$NAMESPACE/$repo" \
-    '.[] | select(.repository==$repo) | {tag: .tag, created: .created, digest: .digest} | @base64' | sort)
-  # Get tags sorted by creation (oldest last)
-  tags=( $(echo "$images" | base64 --decode | jq -r '.tag') )
-  digests=( $(echo "$images" | base64 --decode | jq -r '.digest') )
+  images_json=$(ibmcloud cr images --format json)
+  # Get all tags for this repo, sorted by created date (newest first)
+  tags=( $(echo "$images_json" | jq -r --arg repo "$REGISTRY/$NAMESPACE/$repo" \
+    '.[] | select(.repository==$repo) | .tag' | tac) )
   total=${#tags[@]}
+  deleted=0
   # Always delete the failed IMAGE_TAG if present
-  for i in "${!tags[@]}"; do
-    if [[ "${tags[$i]}" == "$IMAGE_TAG" ]]; then
-      echo "🧹 Deleting failed image: $repo:${tags[$i]}"
-      ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:${tags[$i]}" || echo "(Image $repo:${tags[$i]} not found or already deleted)"
+  for tag in "${tags[@]}"; do
+    if [[ "$tag" == "$IMAGE_TAG" ]]; then
+      echo "🧹 Deleting failed image: $repo:$tag"
+      ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:$tag" || echo "(Image $repo:$tag not found or already deleted)"
+      ((deleted++))
     fi
   done
   # Delete images older than the last $KEEP_N (excluding IMAGE_TAG)
   if (( total > KEEP_N )); then
-    for i in $(seq 0 $((total-KEEP_N-1))); do
-      if [[ "${tags[$i]}" != "$IMAGE_TAG" ]]; then
-        echo "🧹 Deleting old image: $repo:${tags[$i]}"
-        ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:${tags[$i]}" || echo "(Image $repo:${tags[$i]} not found or already deleted)"
+    for ((i=0; i<total-KEEP_N; i++)); do
+      tag="${tags[$i]}"
+      if [[ "$tag" != "$IMAGE_TAG" ]]; then
+        echo "🧹 Deleting old image: $repo:$tag"
+        ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:$tag" || echo "(Image $repo:$tag not found or already deleted)"
+        ((deleted++))
       fi
     done
   fi
+  echo "🧹 Deleted $deleted images for $repo."
 }
 
+print_debug_info
 cleanup_images quantum1-backend
+print_debug_info
 cleanup_images quantum1-frontend
 
 echo "✅ Image cleanup complete."
