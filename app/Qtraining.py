@@ -10,17 +10,35 @@ from qiskit.circuit.library import PauliFeatureMap
 from qiskit.circuit import ParameterVector
 from qiskit import QuantumCircuit
 from scipy.optimize import minimize
-from main import (
-    fetch_one_week_data,
-    make_features,
-    save_model,
-    save_train_data,
-    log_step
-)
+try:
+    from main import (
+        api_predict_quantum_simulator,
+        api_predict_quantum_machine,
+        fetch_and_cache_stock_data_json,
+        make_features,
+        save_model,
+        save_train_data,
+        log_step,
+    )
+except ImportError:
+    from app.main import (
+        api_predict_quantum_simulator,
+        api_predict_quantum_machine,
+        fetch_and_cache_stock_data_json,
+        make_features,
+        save_model,
+        save_train_data,
+        log_step,
+    )
 from qiskit.quantum_info import SparsePauliOp
 import traceback
 
 router = APIRouter()
+
+try:
+    from Qsimulator import router as qsimulator_router
+except ImportError:
+    from app.Qsimulator import router as qsimulator_router
 
 # Quantum QNN Training (Simulator)
 def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:

@@ -78,8 +78,13 @@ jobs:
 
     - name: Wait for IBM CR to free up quota
       run: |
-        echo "Waiting 40 seconds for IBM CR to process deletions..."
-        sleep 40
+        echo "Waiting 30 seconds for IBM CR to process deletions..."
+        sleep 30
+
+    - name: Render backend deployment file
+      run: |
+        envsubst < quantum1-backend-deployment.yaml > rendered_backend.yaml
+        envsubst < quantum1-backend-service.yaml > rendered_backend_service.yaml
 
     - name: Build and push backend Docker image
       run: |
@@ -94,78 +99,43 @@ jobs:
         done
         ibmcloud cr image-list | grep "quantum1-backend.*$IMAGE_TAG" || (echo "[$(date -u)] ❌ Backend image not found in ICR after 5 minutes" && exit 1)
 
-    - name: Wait for backend service external IP
+    - name: Deploy backend to IBM Kubernetes
       run: |
-        echo "⏳ Waiting for backend service external IP..."
-        for i in {1..30}; do
-          BACKEND_URL=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
-          if [ -n "$BACKEND_URL" ]; then
-            echo "✅ Backend URL: $BACKEND_URL"
-            echo "REACT_APP_BACKEND_URL=http://$BACKEND_URL:8080" > frontend/.env.production
-            break
-          fi
-          echo "Waiting for backend external IP... ($i/30)"
-          sleep 10
-        done
-        if [ -z "$BACKEND_URL" ]; then
-          echo "❌ Failed to get backend service external IP"; exit 1
-        fi
-
-    - name: Build and push frontend Docker image
-      run: |
-        echo "[$(date -u)] 🚀 Building frontend Docker image..."
-        cd frontend
-        npm install
-        npm run build
-        docker build -t us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG .
-        echo "[$(date -u)] 📤 Pushing frontend Docker image..."
-        docker push us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG
-        echo "[$(date -u)] ⏳ Waiting for frontend image to appear in ICR..."
-        for i in {1..30}; do
-          ibmcloud cr image-list | grep "quantum1-frontend.*$IMAGE_TAG" && break
-          echo "[$(date -u)] Waiting for frontend image in ICR... ($i/30)"; sleep 10
-        done
-        ibmcloud cr image-list | grep "quantum1-frontend.*$IMAGE_TAG" || (echo "[$(date -u)] ❌ Frontend image not found in ICR after 5 minutes" && exit 1)
-        cd ..
-
-    - name: Render deployment files
-      run: |
-        echo "[$(date -u)] 📝 Rendering deployment files..."
-        export IMAGE_TAG=${{ github.sha }}
-        export TIMESTAMP=$(date +%s)
-        envsubst < quantum1-backend-deployment.yaml > rendered_backend.yaml
-        envsubst < quantum1-backend-service.yaml > rendered_backend_service.yaml
-        envsubst < frontend/quantum1-frontend-deployment.yaml > rendered_frontend.yaml
-        envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
-
-    - name: Apply backend manifests
-      run: |
+        echo "[$(date -u)] 🚀 Deploying backend..."
         kubectl apply -f rendered_backend.yaml -n $NAMESPACE
         kubectl apply -f rendered_backend_service.yaml -n $NAMESPACE
 
-    - name: Wait for backend IP and set frontend env
+    - name: Wait for backend service external IP
+      id: wait-backend-ip
       run: |
         echo "⏳ Waiting for backend service external IP..."
         for i in {1..30}; do
-          BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null)
-          if [ ! -z "$BACKEND_IP" ]; then
+          BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ -n "$BACKEND_IP" ]; then
             echo "✅ Backend IP: $BACKEND_IP"
+            echo "BACKEND_IP=$BACKEND_IP" >> $GITHUB_ENV
             break
           fi
-          echo "Waiting... ($i)"; sleep 5
+          sleep 10
         done
         if [ -z "$BACKEND_IP" ]; then
-          echo "❌ Failed to get backend service IP"; exit 1
+          echo "❌ Backend external IP not found."
+          exit 1
         fi
+
+    - name: Write backend URL to frontend/.env.production
+      run: |
         echo "REACT_APP_BACKEND_URL=http://$BACKEND_IP:8080" > frontend/.env.production
         cat frontend/.env.production
 
-    - name: Render and deploy frontend
+    - name: Build and push frontend Docker image
       run: |
-        echo "[$(date -u)] 📝 Rendering and deploying frontend..."
-        export IMAGE_TAG=$IMAGE_TAG
-        envsubst < frontend/quantum1-frontend-deployment.yaml > rendered_frontend.yaml
-        envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
+        cd frontend
+        docker build -t us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG .
+        docker push us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG
+
+    - name: Deploy frontend
+      run: |
         kubectl apply -f rendered_frontend.yaml -n $NAMESPACE
         kubectl apply -f rendered_frontend_service.yaml -n $NAMESPACE
 

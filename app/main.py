@@ -27,7 +27,10 @@ from qiskit.circuit import ParameterVector  # type: ignore
 from sklearn.linear_model import LinearRegression # type: ignore
 from sklearn.metrics import mean_squared_error # type: ignore
 import sys
-from config import load_api_keys
+try:
+    from config import load_api_keys
+except ImportError:
+    from app.config import load_api_keys
 from qiskit.quantum_info import SparsePauliOp
 
 # Qiskit 1.0.0 compatible imports (install with pip if missing):
@@ -469,13 +472,25 @@ def ensure_classical_ann(symbol: str):
         train_classical_ann([symbol])
 
 # --- Import and include router for quantum training ---
-from Qtraining import router as qtraining_router
+try:
+    from Qtraining import router as qtraining_router
+except ImportError:
+    from app.Qtraining import router as qtraining_router
+
 app.include_router(qtraining_router)
 # --- Import and include router for quantum simulator prediction ---
-from Qsimulator import router as qsimulator_router
+try:
+    from Qsimulator import router as qsimulator_router
+except ImportError:
+    from app.Qsimulator import router as qsimulator_router
+
 app.include_router(qsimulator_router)
 # --- Import and include router for quantum machine prediction ---
-from Qmachine import router as qmachine_router
+try:
+    from Qmachine import router as qmachine_router
+except ImportError:
+    from app.Qmachine import router as qmachine_router
+
 app.include_router(qmachine_router)
 
 @app.post("/predict/compare")

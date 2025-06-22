@@ -4,7 +4,12 @@ from qiskit.circuit import ParameterVector
 from qiskit import QuantumCircuit
 from qiskit_machine_learning.optimizers import ADAM
 from qiskit_machine_learning.algorithms import VQR
-from main import log_step
+
+# Import log_step from main or app.main depending on the environment
+try:
+    from main import log_step
+except ImportError:
+    from app.main import log_step
 
 # Import Aer only if available
 try:

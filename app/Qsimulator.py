@@ -7,8 +7,22 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 from typing import Any, List, Dict
 from sklearn.metrics import mean_squared_error
-from quantum_utils import quantum_predict
-from main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
+
+try:
+    from main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
+except ImportError:
+    from app.main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
+
+try:
+    from quantum_utils import quantum_predict
+except ImportError:
+    from app.quantum_utils import quantum_predict
+
+try:
+    from Qtraining import some_function
+except ImportError:
+    from app.Qtraining import some_function
+
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
 from pydantic import BaseModel
