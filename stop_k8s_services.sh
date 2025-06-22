@@ -80,8 +80,12 @@ print_debug_info() {
 # Function to delete old images, keeping the last N and always deleting the failed IMAGE_TAG if present
 cleanup_images() {
   local repo=$1
-  echo "🧹 Checking images for $repo..."
+  echo "[$(date -u)] 🧹 Checking images for $repo..."
   images_json=$(ibmcloud cr images --format json)
+  if [[ -z "$images_json" || "$images_json" == "[]" || "$images_json" == *"no images"* ]]; then
+    echo "[$(date -u)] No images found for $repo, skipping jq parsing."
+    return 0
+  fi
   # Get all tags for this repo, sorted by created date (newest first)
   tags=( $(echo "$images_json" | jq -r --arg repo "$REGISTRY/$NAMESPACE/$repo" \
     '.[] | select(.repository==$repo) | .tag' | tac) )
@@ -90,8 +94,8 @@ cleanup_images() {
   # Always delete the failed IMAGE_TAG if present
   for tag in "${tags[@]}"; do
     if [[ "$tag" == "$IMAGE_TAG" ]]; then
-      echo "🧹 Deleting failed image: $repo:$tag"
-      ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:$tag" || echo "(Image $repo:$tag not found or already deleted)"
+      echo "[$(date -u)] 🧹 Deleting failed image: $repo:$tag"
+      ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:$tag" || echo "[$(date -u)] (Image $repo:$tag not found or already deleted)"
       ((deleted++))
     fi
   done
@@ -100,13 +104,13 @@ cleanup_images() {
     for ((i=0; i<total-KEEP_N; i++)); do
       tag="${tags[$i]}"
       if [[ "$tag" != "$IMAGE_TAG" ]]; then
-        echo "🧹 Deleting old image: $repo:$tag"
-        ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:$tag" || echo "(Image $repo:$tag not found or already deleted)"
+        echo "[$(date -u)] 🧹 Deleting old image: $repo:$tag"
+        ibmcloud cr image-rm "$REGISTRY/$NAMESPACE/$repo:$tag" || echo "[$(date -u)] (Image $repo:$tag not found or already deleted)"
         ((deleted++))
       fi
     done
   fi
-  echo "🧹 Deleted $deleted images for $repo."
+  echo "[$(date -u)] 🧹 Deleted $deleted images for $repo."
 }
 
 print_debug_info
@@ -114,4 +118,4 @@ cleanup_images quantum1-backend
 print_debug_info
 cleanup_images quantum1-frontend
 
-echo "✅ Image cleanup complete."
+echo "[$(date -u)] ✅ Image cleanup complete."

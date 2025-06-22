@@ -72,8 +72,39 @@ jobs:
         echo "NAMESPACE: ${NAMESPACE:-MISSING}"
         echo "IMAGE_TAG: ${IMAGE_TAG:-MISSING}"
 
+    - name: Build and push backend Docker image
+      run: |
+        echo "[$(date -u)] 🚀 Building backend Docker image..."
+        docker build -t us.icr.io/$NAMESPACE/quantum1-backend:$IMAGE_TAG ./app
+        echo "[$(date -u)] 📤 Pushing backend Docker image..."
+        docker push us.icr.io/$NAMESPACE/quantum1-backend:$IMAGE_TAG
+        echo "[$(date -u)] ⏳ Waiting for backend image to appear in ICR..."
+        for i in {1..30}; do
+          ibmcloud cr image-list | grep "quantum1-backend.*$IMAGE_TAG" && break
+          echo "[$(date -u)] Waiting for backend image in ICR... ($i/30)"; sleep 10
+        done
+        ibmcloud cr image-list | grep "quantum1-backend.*$IMAGE_TAG" || (echo "[$(date -u)] ❌ Backend image not found in ICR after 5 minutes" && exit 1)
+
+    - name: Build and push frontend Docker image
+      run: |
+        echo "[$(date -u)] 🚀 Building frontend Docker image..."
+        cd frontend
+        npm install
+        npm run build
+        docker build -t us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG .
+        echo "[$(date -u)] 📤 Pushing frontend Docker image..."
+        docker push us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG
+        echo "[$(date -u)] ⏳ Waiting for frontend image to appear in ICR..."
+        for i in {1..30}; do
+          ibmcloud cr image-list | grep "quantum1-frontend.*$IMAGE_TAG" && break
+          echo "[$(date -u)] Waiting for frontend image in ICR... ($i/30)"; sleep 10
+        done
+        ibmcloud cr image-list | grep "quantum1-frontend.*$IMAGE_TAG" || (echo "[$(date -u)] ❌ Frontend image not found in ICR after 5 minutes" && exit 1)
+        cd ..
+
     - name: Render deployment files
       run: |
+        echo "[$(date -u)] 📝 Rendering deployment files..."
         export IMAGE_TAG=${{ github.sha }}
         export TIMESTAMP=$(date +%s)
         envsubst < quantum1-backend-deployment.yaml > rendered_backend.yaml
@@ -101,16 +132,9 @@ jobs:
         echo "REACT_APP_BACKEND_URL=http://$BACKEND_IP:8080" > frontend/.env.production
         cat frontend/.env.production
 
-    - name: Build and push frontend Docker image
-      run: |
-        cd frontend
-        npm install
-        npm run build
-        docker build -t us.icr.io/quantum1space/quantum1-frontend:${{ github.sha }} .
-        docker push us.icr.io/quantum1space/quantum1-frontend:${{ github.sha }}
-
     - name: Render and deploy frontend
       run: |
+        echo "[$(date -u)] 📝 Rendering and deploying frontend..."
         export IMAGE_TAG=$IMAGE_TAG
         envsubst < frontend/quantum1-frontend-deployment.yaml > rendered_frontend.yaml
         envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
