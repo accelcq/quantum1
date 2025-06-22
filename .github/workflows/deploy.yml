@@ -72,6 +72,15 @@ jobs:
         echo "NAMESPACE: ${NAMESPACE:-MISSING}"
         echo "IMAGE_TAG: ${IMAGE_TAG:-MISSING}"
 
+    - name: Clean up old images in IBM CR (avoid quota exceeded)
+      run: |
+        bash deleteibmcloudcrimages.sh
+
+    - name: Wait for IBM CR to free up quota
+      run: |
+        echo "Waiting 40 seconds for IBM CR to process deletions..."
+        sleep 40
+
     - name: Build and push backend Docker image
       run: |
         echo "[$(date -u)] 🚀 Building backend Docker image..."
