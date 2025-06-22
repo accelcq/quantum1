@@ -30,8 +30,10 @@ fi
 
 
 ibmcloud login --apikey $IBM_CLOUD_API_KEY
-# Check if the required environment variables are set
-
+# Target resource group if set
+if [ -n "$IBM_CLOUD_RESOURCE_GROUP" ]; then
+  ibmcloud target -g "$IBM_CLOUD_RESOURCE_GROUP"
+fi
 ibmcloud target -r us-south
 ibmcloud cr region-set $REGION
 # No 'namespace-set' command; ensure namespace exists instead
@@ -46,7 +48,8 @@ if ! command -v ibmcloud &> /dev/null; then
   echo "ibmcloud CLI is required but not installed. Please install ibmcloud CLI to proceed."
   exit 1
 fi
-if ! ibmcloud is target >/dev/null 2>&1; then
+# Check login by running a harmless command
+if ! ibmcloud target >/dev/null 2>&1; then
   echo "You must be logged in to IBM Cloud. Please run 'ibmcloud login' first."
   exit 1
 fi
