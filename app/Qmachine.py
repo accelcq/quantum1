@@ -7,8 +7,8 @@ from fastapi.responses import StreamingResponse
 from datetime import datetime
 from typing import List
 from sklearn.metrics import mean_squared_error
-from app.quantum_utils import quantum_predict
-from app.main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
+from quantum_utils import quantum_predict
+from main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
 from pydantic import BaseModel
 
 # --- Use IBMQ_API_TOKEN from environment ---
