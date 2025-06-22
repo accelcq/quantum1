@@ -10,7 +10,7 @@ from qiskit.circuit.library import PauliFeatureMap
 from qiskit.circuit import ParameterVector
 from qiskit import QuantumCircuit
 from scipy.optimize import minimize
-from .main import (
+from app.main import (
     fetch_one_week_data,
     make_features,
     save_model,

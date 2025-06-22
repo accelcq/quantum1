@@ -85,6 +85,29 @@ jobs:
         done
         ibmcloud cr image-list | grep "quantum1-backend.*$IMAGE_TAG" || (echo "[$(date -u)] ❌ Backend image not found in ICR after 5 minutes" && exit 1)
 
+    - name: Deploy backend
+      run: |
+        echo "[$(date -u)] 🚀 Deploying backend..."
+        kubectl apply -f k8s/backend-deployment.yaml -n $NAMESPACE
+        kubectl apply -f k8s/backend-service.yaml -n $NAMESPACE
+
+    - name: Wait for backend service external IP
+      run: |
+        echo "⏳ Waiting for backend service external IP..."
+        for i in {1..30}; do
+          BACKEND_URL=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ -n "$BACKEND_URL" ]; then
+            echo "✅ Backend URL: $BACKEND_URL"
+            echo "REACT_APP_BACKEND_URL=http://$BACKEND_URL:8080" > frontend/.env.production
+            break
+          fi
+          echo "Waiting for backend external IP... ($i/30)"
+          sleep 10
+        done
+        if [ -z "$BACKEND_URL" ]; then
+          echo "❌ Failed to get backend service external IP"; exit 1
+        fi
+
     - name: Build and push frontend Docker image
       run: |
         echo "[$(date -u)] 🚀 Building frontend Docker image..."

@@ -7,8 +7,7 @@ COPY package*.json ./
 # Copy the rest of the application code
 # Copy the .env file to the working directory
 COPY . .
-
-# Build the React application
+RUN if [ -f .env.production ]; then cp .env.production .env; fi
 RUN npm install
 RUN npm run build
 
