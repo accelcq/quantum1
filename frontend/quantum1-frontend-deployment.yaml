@@ -19,9 +19,3 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 80
-        command: ["/bin/sh", "-c"]
-        args:
-          - |
-            echo "🚀 Starting frontend service with npm...";
-            echo "🌍 Access it via: http://$(hostname -i):80";
-            npm start

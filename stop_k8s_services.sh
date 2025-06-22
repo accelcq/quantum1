@@ -66,7 +66,7 @@ print_debug_info() {
   echo "\n==== IBM Cloud Container Registry Image Digests ===="
   for img in quantum1-frontend quantum1-backend; do
     echo "\nImage digests for $img:"
-    ibmcloud cr image-digests "$REGISTRY/$NAMESPACE/$img"
+    ibmcloud cr image-digests --restrict "$NAMESPACE/$img"
   done
 
   echo "\n==== Pod Logs (frontend) ===="
