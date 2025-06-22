@@ -31,16 +31,25 @@ const Dashboard = () => {
   const authHeader = token ? { Authorization: `Bearer ${token}` } : {};
 
   const handleLogin = async () => {
-    const formData = new URLSearchParams();
-    formData.append("username", login.username);
-    formData.append("password", login.password);
-    const res = await fetch(`${API_URL}/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData
+    const data = new URLSearchParams();
+    data.append('username', login.username);
+    data.append('password', login.password);
+
+    fetch('http://localhost:8000/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: data,
+    })
+    .then(response => response.json())
+    .then(data => {
+      // handle success
+      setToken(data.access_token);
+    })
+    .catch(error => {
+      // handle error
     });
-    const data = await res.json();
-    setToken(data.access_token);
   };
 
   const callAPI = async (method, url, body) => {

@@ -66,7 +66,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or use ["http://localhost:3000", "http://172.26.48.1:3000"]
+    allow_origins=["*"],  # Or specify your frontend domain(s) for better security
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
