@@ -85,12 +85,6 @@ jobs:
         done
         ibmcloud cr image-list | grep "quantum1-backend.*$IMAGE_TAG" || (echo "[$(date -u)] ❌ Backend image not found in ICR after 5 minutes" && exit 1)
 
-    - name: Deploy backend
-      run: |
-        echo "[$(date -u)] 🚀 Deploying backend..."
-        kubectl apply -f rendered_backend.yaml -n $NAMESPACE
-        kubectl apply -f rendered_backend_service.yaml -n $NAMESPACE
-
     - name: Wait for backend service external IP
       run: |
         echo "⏳ Waiting for backend service external IP..."
