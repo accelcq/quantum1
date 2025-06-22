@@ -1,17 +1,17 @@
 #Dockerfile-backend for FastAPI application(backend)
 
-FROM python:3.11-slim-bullseye AS fastapi-build
+FROM python:3.11-slim
 
 WORKDIR /app
-# Copy the requirements file first to leverage Docker cache
 
+# Copy requirements.txt from app/ to /app in the container
 COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy all backend source code into the container's /app directory
 COPY . .
 
-# Set PYTHONPATH to include /app
-ENV PYTHONPATH="/app"
-
-# Update CMD to reference main.py directly
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start the FastAPI app using uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
