@@ -109,6 +109,8 @@ jobs:
         export TIMESTAMP=$(date +%s)
         envsubst < quantum1-backend-deployment.yaml > rendered_backend.yaml
         envsubst < quantum1-backend-service.yaml > rendered_backend_service.yaml
+        envsubst < frontend/quantum1-frontend-deployment.yaml > rendered_frontend.yaml
+        envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
 
     - name: Apply backend manifests
       run: |
@@ -140,11 +142,6 @@ jobs:
         envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
         kubectl apply -f rendered_frontend.yaml -n $NAMESPACE
         kubectl apply -f rendered_frontend_service.yaml -n $NAMESPACE
-
-    - name: Restart deployments
-      run: |
-        kubectl rollout restart deployment/quantum1-frontend -n $NAMESPACE
-        kubectl rollout restart deployment/quantum1-backend -n $NAMESPACE
 
     - name: Check rollout status and fallback on failure
       run: |
