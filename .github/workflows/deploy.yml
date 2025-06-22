@@ -88,8 +88,8 @@ jobs:
     - name: Deploy backend
       run: |
         echo "[$(date -u)] 🚀 Deploying backend..."
-        kubectl apply -f k8s/backend-deployment.yaml -n $NAMESPACE
-        kubectl apply -f k8s/backend-service.yaml -n $NAMESPACE
+        kubectl apply -f rendered_backend.yaml -n $NAMESPACE
+        kubectl apply -f rendered_backend_service.yaml -n $NAMESPACE
 
     - name: Wait for backend service external IP
       run: |

@@ -13,18 +13,14 @@ function App() {
   const [historicalData, setHistoricalData] = useState(null);
   const [predictClassicalSymbols, setPredictClassicalSymbols] = useState("");
   const [predictClassicalResult, setPredictClassicalResult] = useState(null);
-  const [predictQuantumSymbols, setPredictQuantumSymbols] = useState("");
-  const [predictQuantumResult, setPredictQuantumResult] = useState(null);
-  const [modelDataSymbol, setModelDataSymbol] = useState("");
-  const [modelDataType, setModelDataType] = useState("");
-  const [modelData, setModelData] = useState(null);
-  const [modelLoadSymbol, setModelLoadSymbol] = useState("");
-  const [modelLoadType, setModelLoadType] = useState("");
-  const [modelLoad, setModelLoad] = useState(null);
-  const [trainClassicalSymbols, setTrainClassicalSymbols] = useState("");
-  const [trainClassicalResult, setTrainClassicalResult] = useState(null);
-  const [trainQuantumSymbols, setTrainQuantumSymbols] = useState("");
-  const [trainQuantumResult, setTrainQuantumResult] = useState(null);
+  const [predictQuantumSimSymbols, setPredictQuantumSimSymbols] = useState("");
+  const [predictQuantumSimResult, setPredictQuantumSimResult] = useState(null);
+  const [predictQuantumMachineSymbols, setPredictQuantumMachineSymbols] = useState("");
+  const [predictQuantumMachineBackend, setPredictQuantumMachineBackend] = useState("ibm_brisbane");
+  const [predictQuantumMachineResult, setPredictQuantumMachineResult] = useState(null);
+  const [predictCompareSymbols, setPredictCompareSymbols] = useState("");
+  const [predictCompareBackend, setPredictCompareBackend] = useState("ibm_brisbane");
+  const [predictCompareResult, setPredictCompareResult] = useState(null);
 
   const getAuthHeader = () =>
     token && token.access_token
@@ -144,46 +140,30 @@ function App() {
         <pre>{JSON.stringify(predictClassicalResult, null, 2)}</pre>
       </section>
 
-      {/* POST /predict/quantum */}
+      {/* POST /predict/quantum/simulator */}
       <section>
-        <h2>Api Predict Quantum (/predict/quantum)</h2>
-        <input placeholder="Comma-separated symbols" value={predictQuantumSymbols} onChange={e => setPredictQuantumSymbols(e.target.value)} />
-        <button onClick={() => post("/predict/quantum", predictQuantumSymbols.split(",").map(s => s.trim()), setPredictQuantumResult)}>Predict</button>
-        <pre>{JSON.stringify(predictQuantumResult, null, 2)}</pre>
+        <h2>Predict Quantum Simulator (/predict/quantum/simulator)</h2>
+        <input placeholder="Comma-separated symbols" value={predictQuantumSimSymbols} onChange={e => setPredictQuantumSimSymbols(e.target.value)} />
+        <button onClick={() => post("/predict/quantum/simulator", { symbols: predictQuantumSimSymbols.split(",").map(s => s.trim()) }, setPredictQuantumSimResult)}>Predict</button>
+        <pre>{JSON.stringify(predictQuantumSimResult, null, 2)}</pre>
       </section>
 
-      {/* GET /model/data/{symbol}/{model_type} */}
+      {/* POST /predict/quantum/machine/{backend} */}
       <section>
-        <h2>Api Model Data (/model/data/&lt;symbol&gt;/&lt;model_type&gt;)</h2>
-        <input placeholder="Symbol" value={modelDataSymbol} onChange={e => setModelDataSymbol(e.target.value)} />
-        <input placeholder="Model Type (ann/qnn/classical/quantum)" value={modelDataType} onChange={e => setModelDataType(e.target.value)} />
-        <button onClick={() => get(`/model/data/${modelDataSymbol}/${modelDataType}`, setModelData)}>Get Model Data</button>
-        <pre>{JSON.stringify(modelData, null, 2)}</pre>
+        <h2>Predict Quantum Machine (/predict/quantum/machine/&#123;backend&#125;)</h2>
+        <input placeholder="Comma-separated symbols" value={predictQuantumMachineSymbols} onChange={e => setPredictQuantumMachineSymbols(e.target.value)} />
+        <input placeholder="Backend (e.g. ibm_brisbane)" value={predictQuantumMachineBackend} onChange={e => setPredictQuantumMachineBackend(e.target.value)} />
+        <button onClick={() => post(`/predict/quantum/machine/${predictQuantumMachineBackend}`, { symbols: predictQuantumMachineSymbols.split(",").map(s => s.trim()) }, setPredictQuantumMachineResult)}>Predict</button>
+        <pre>{JSON.stringify(predictQuantumMachineResult, null, 2)}</pre>
       </section>
 
-      {/* GET /model/load/{symbol}/{model_type} */}
+      {/* POST /predict/compare */}
       <section>
-        <h2>Api Model Load (/model/load/&lt;symbol&gt;/&lt;model_type&gt;)</h2>
-        <input placeholder="Symbol" value={modelLoadSymbol} onChange={e => setModelLoadSymbol(e.target.value)} />
-        <input placeholder="Model Type (ann/qnn/classical/quantum)" value={modelLoadType} onChange={e => setModelLoadType(e.target.value)} />
-        <button onClick={() => get(`/model/load/${modelLoadSymbol}/${modelLoadType}`, setModelLoad)}>Load Model</button>
-        <pre>{JSON.stringify(modelLoad, null, 2)}</pre>
-      </section>
-
-      {/* POST /train/classical */}
-      <section>
-        <h2>Api Train Classical (/train/classical)</h2>
-        <input placeholder="Comma-separated symbols" value={trainClassicalSymbols} onChange={e => setTrainClassicalSymbols(e.target.value)} />
-        <button onClick={() => post("/train/classical", trainClassicalSymbols.split(",").map(s => s.trim()), setTrainClassicalResult)}>Train</button>
-        <pre>{JSON.stringify(trainClassicalResult, null, 2)}</pre>
-      </section>
-
-      {/* POST /train/quantum */}
-      <section>
-        <h2>Api Train Quantum (/train/quantum)</h2>
-        <input placeholder="Comma-separated symbols" value={trainQuantumSymbols} onChange={e => setTrainQuantumSymbols(e.target.value)} />
-        <button onClick={() => post("/train/quantum", trainQuantumSymbols.split(",").map(s => s.trim()), setTrainQuantumResult)}>Train</button>
-        <pre>{JSON.stringify(trainQuantumResult, null, 2)}</pre>
+        <h2>Predict Compare (/predict/compare)</h2>
+        <input placeholder="Comma-separated symbols" value={predictCompareSymbols} onChange={e => setPredictCompareSymbols(e.target.value)} />
+        <input placeholder="Backend (e.g. ibm_brisbane)" value={predictCompareBackend} onChange={e => setPredictCompareBackend(e.target.value)} />
+        <button onClick={() => post("/predict/compare", { symbols: predictCompareSymbols.split(",").map(s => s.trim()), backend: predictCompareBackend }, setPredictCompareResult)}>Predict</button>
+        <pre>{JSON.stringify(predictCompareResult, null, 2)}</pre>
       </section>
     </div>
   );
