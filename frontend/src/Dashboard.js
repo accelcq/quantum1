@@ -2,7 +2,7 @@ import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 
-const API_URL = "http://localhost:8000";
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
 
 const symbolsList = ["AAPL", "GOOG", "MSFT", "TSLA", "AMZN", "META", "NVDA", "NFLX", "IBM", "INTC"];
 
@@ -35,7 +35,7 @@ const Dashboard = () => {
     data.append('username', login.username);
     data.append('password', login.password);
 
-    fetch('http://localhost:8000/token', {
+    fetch(`${API_URL}/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -145,8 +145,9 @@ const Dashboard = () => {
       {/* Classical Train */}
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">3. Train Classical Model</h2>
-        <button onClick={() => callAPI("POST", "/train/classical", { symbols: [symbol] })} className="w-full bg-indigo-600 py-2 rounded-lg">Train using Classical ML</button>
-        <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/train/classical"], null, 2)}</pre>
+        <input className="w-full px-4 py-2 mb-2 rounded-lg text-black" placeholder="Stock symbol (default: AAPL)" value={symbol} onChange={e => setSymbol(e.target.value)} />
+        <button onClick={() => callAPI("POST", "/train/classicalML", { symbols: [symbol || "AAPL"] })} className="w-full bg-indigo-600 py-2 rounded-lg">Train using Classical ML</button>
+        <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/train/classicalML"], null, 2)}</pre>
       </motion.div>
 
       {/* Quantum Train */}
@@ -222,18 +223,18 @@ const Dashboard = () => {
       {/* Predict using Classical ML */}
       <motion.div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">7. Predict using Classical ML</h2>
-        <button onClick={() => callAPI("POST", "/predict/classical", { symbols: [symbol] })} className="w-full bg-teal-600 py-2 rounded-lg">Predict (Classical ML)</button>
-        {responses["/predict/classical"] && responses["/predict/classical"][symbol] && (
+        <button onClick={() => callAPI("POST", "/predict/classicalML", { symbols: [symbol] })} className="w-full bg-teal-600 py-2 rounded-lg">Predict (Classical ML)</button>
+        {responses["/predict/classicalML"] && responses["/predict/classicalML"][symbol] && (
           <>
-            <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/classical"], null, 2)}</pre>
-            <button onClick={() => exportCSV(responses["/predict/classical"], `${symbol}_ann_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
+            <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/classicalML"], null, 2)}</pre>
+            <button onClick={() => exportCSV(responses["/predict/classicalML"], `${symbol}_ann_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
             {/* Chart for Classical Prediction */}
             <ResponsiveContainer width="100%" height={300}>
               <LineChart
-                data={responses["/predict/classical"][symbol].y_test.map((y, i) => ({
-                  date: responses["/predict/classical"][symbol].dates[i],
+                data={responses["/predict/classicalML"][symbol].y_test.map((y, i) => ({
+                  date: responses["/predict/classicalML"][symbol].dates[i],
                   Actual: y,
-                  Predicted: responses["/predict/classical"][symbol].y_pred[i]
+                  Predicted: responses["/predict/classicalML"][symbol].y_pred[i]
                 }))}
               >
                 <XAxis dataKey="date" hide />

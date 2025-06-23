@@ -10,43 +10,19 @@ from qiskit.circuit.library import PauliFeatureMap
 from qiskit.circuit import ParameterVector
 from qiskit import QuantumCircuit
 from scipy.optimize import minimize
-try:
-    from main import (
-        api_predict_quantum_simulator,
-        api_predict_quantum_machine,
-        fetch_and_cache_stock_data_json,
-        make_features,
-        save_model,
-        save_train_data,
-        log_step,
-    )
-except ImportError:
-    from app.main import (
-        api_predict_quantum_simulator,
-        api_predict_quantum_machine,
-        fetch_and_cache_stock_data_json,
-        make_features,
-        save_model,
-        save_train_data,
-        log_step,
-    )
+from app.shared import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step, api_predict_quantum_simulator, api_predict_quantum_machine
 from qiskit.quantum_info import SparsePauliOp
 import traceback
 
 router = APIRouter()
 
-try:
-    from Qsimulator import router as qsimulator_router
-except ImportError:
-    from app.Qsimulator import router as qsimulator_router
-
 # Quantum QNN Training (Simulator)
-def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:
+def train_quantum_qnn_simulator(symbols: List[str]) -> Dict[str, str]:
     log_step("TrainQuantumQNN", f"Training quantum QNN for symbols: {symbols}")
     results = {}
     for symbol in symbols:
         try:
-            df = fetch_one_week_data(symbol)
+            df = fetch_and_cache_stock_data_json(symbol)
             if len(df) < 3:
                 log_step("TrainQuantumQNN", f"Not enough data for {symbol}, skipping.")
                 results[symbol] = "not enough data"
@@ -65,8 +41,8 @@ def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:
             from qiskit_aer import AerSimulator
             from qiskit.primitives import Estimator
             backend = AerSimulator()
-            log_step("QuantumML", f"Using backend: {backend.name()}")
-            estimator = Estimator(backend=backend)
+            log_step("QuantumML", f"Using backend: {backend}")
+            estimator = Estimator()  # Use default constructor
             observable = SparsePauliOp("Z" + "I" * (num_features - 1))
             def objective(theta):
                 values = []
@@ -102,9 +78,15 @@ def train_quantum_qnn(symbols: List[str]) -> Dict[str, str]:
             results[symbol] = f"error: {str(e)}"
     return results
 
-@router.post("/train/quantum")
-def api_train_quantum(_request: Request) -> dict:
-    log_step("API", "/train/quantum called")
-    result = train_quantum_qnn(["AAPL"])  # or pass symbols as needed
-    log_step("API", "Quantum QNN training complete")
+@router.post("/train/quantum/simulator")
+def api_train_quantum_simulator(request: Request, symbols: List[str] = None) -> dict:
+    log_step("API", "/train/quantum/simulator called")
+    if symbols is None:
+        symbols = ["AAPL"]
+    result = train_quantum_qnn_simulator(symbols)
+    log_step("API", "Quantum QNN simulator training complete")
     return {"status": "success", "trained": result}
+
+# Remove old /train/quantum endpoint and function
+def api_train_quantum(_request: Request) -> dict:
+    pass  # Deprecated, replaced by api_train_quantum_simulator

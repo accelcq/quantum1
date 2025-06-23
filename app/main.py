@@ -32,6 +32,7 @@ try:
 except ImportError:
     from app.config import load_api_keys
 from qiskit.quantum_info import SparsePauliOp
+from app.Qsimulator import SymbolsRequest
 
 # Qiskit 1.0.0 compatible imports (install with pip if missing):
 # pip install "qiskit==1.0.0" "qiskit-aer==0.13.3" "qiskit-ibm-runtime==0.22.0" "qiskit-machine-learning==0.7.1"
@@ -55,8 +56,9 @@ logging.basicConfig(
     ]
 )
 
-def log_step(step: str, detail: str):
-    logging.info(f"{step}: {detail}")
+# Remove definitions of log_step, get_today_str, fetch_and_cache_stock_data_json, make_features, save_model, save_train_data
+# Import them from shared.py instead
+from app.shared import log_step, get_today_str, fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, api_predict_quantum_simulator, api_predict_quantum_machine, quantum_machine_predict_dict
 
 # Load API keys from environment variables or GitHub secrets
 FMP_API_KEY, IBM_CLOUD_API_KEY, IBMQ_API_TOKEN = load_api_keys()
@@ -148,7 +150,7 @@ def predict_stock(current_user: dict[str, Any] = Depends(get_current_user)):
     qc = QuantumCircuit(1, 1)
     qc.h(0)  # Superposition: simulates uncertainty in stock movement
     qc.measure(0, 0)
-    backend = AerSimulator() #Aer.get_backend('qasm_simulator')  # type: ignore
+    backend = Aer.get_backend('aer_simulator')
     job = backend.run(qc, shots=100)
     result = job.result()
     counts = result.get_counts(qc)
@@ -233,20 +235,6 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
     df: pd.DataFrame = pd.json_normalize(data, 'historical', ['symbol'])
     df = df.sort_values('date').reset_index(drop=True)
     log_step("DataFetch", f"DataFrame created for {symbol}, shape: {df.shape}")
-    return df
-
-def get_today_str():
-    return datetime.now().strftime('%Y-%m-%d')
-
-def fetch_and_cache_stock_data(symbol: str) -> pd.DataFrame:
-    today = get_today_str()
-    cache_file = f"{symbol}_historical_{today}.csv"
-    if os.path.exists(cache_file):
-        log_step("DataFetch", f"Loading cached data for {symbol} from {cache_file}")
-        return pd.read_csv(cache_file)
-    df = fetch_stock_data(symbol)
-    df.to_csv(cache_file, index=False)
-    log_step("DataFetch", f"Fetched and cached data for {symbol} to {cache_file}")
     return df
 
 # --- Data Fetching with Daily JSON Cache ---
@@ -349,6 +337,7 @@ def classical_predict(
 # --- API Endpoints ---
 
 from typing import List, Dict, Any
+from fastapi import Body
 
 @app.get("/historical-data/{symbol}")
 def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
@@ -359,11 +348,15 @@ def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
     records = df.to_dict(orient="records")
     return [{str(k): v for k, v in record.items()} for record in records]
 
-@app.post("/predict/classical")
-def api_predict_classical(symbols: List[str], request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:
-    log_step("API", f"POST /predict/classical called for symbols: {symbols}")
+class SymbolsRequest(BaseModel):
+    symbols: list[str] = ["AAPL"]
+
+@app.post("/predict/classicalML")
+def api_predict_classicalML(req: SymbolsRequest, request: Request = None) -> Dict[str, Dict[str, float | list | str]]:
+    symbols = req.symbols
+    log_step("API", f"POST /predict/classicalML called for symbols: {symbols}")
     check_ibm_keys()
-    results: dict[str, dict[str, float | list[Any] | str]] = {}
+    results: dict[str, dict[str, float | list | str]] = {}
     today = get_today_str()
     for symbol in symbols:
         pred_cache = f"{symbol}_classical_pred_{today}.json"
@@ -386,16 +379,23 @@ def api_predict_classical(symbols: List[str], request: Request) -> Dict[str, Dic
             "y_test": y_test.tolist(),
             "y_pred": y_pred.tolist(),
             "mse": mse,
-            "model_type": "linear_regression"
+            "model_type": "classicalML"
         }
         results[symbol] = result
         with open(pred_cache, "w") as f:
             json.dump(result, f)
         save_model(model, f"{symbol}_classical_{today}.pkl")
-        save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_train_data_{today}.json")
+        save_train_data({"x_train": x_train.tolist(), "y_train": y_train.tolist()}, f"{symbol}_classical_train_data_{today}.json")
         log_step("API", f"Classical prediction complete and cached for {symbol}")
     log_step("API", "Returning classical prediction results")
     return results
+
+# Deprecated endpoints (for clarity)
+def api_predict_classical(symbols: List[str], request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:
+    pass  # Deprecated, replaced by api_predict_classicalML
+
+def api_train_classical(_request: Request) -> dict[str, object]:
+    pass  # Deprecated, replaced by api_train_classicalML
 
 # --- Top 10 stock symbols (example, can be customized) ---
 TOP_10_SYMBOLS = [
@@ -456,11 +456,12 @@ def train_classical_ann(symbols: list[str] = TOP_10_SYMBOLS) -> dict[str, str]:
     return results
 
 # --- FastAPI Endpoints for Training ---
-@app.post("/train/classical")
-def api_train_classical(_request: Request) -> dict[str, object]:
+@app.post("/train/classicalML")
+def api_train_classicalML(req: SymbolsRequest = Body({"symbols": ["AAPL"]}), request: Request = None) -> dict[str, object]:
+    symbols = req.symbols
     check_ibm_keys()
-    log_step("API", "/train/classical called")
-    result = train_classical_ann()
+    log_step("API", "/train/classicalML called")
+    result = train_classical_ann(symbols)
     log_step("API", "Classical ANN training complete")
     return {"status": "success", "trained": result}
 
@@ -494,18 +495,23 @@ except ImportError:
 app.include_router(qmachine_router)
 
 @app.post("/predict/compare")
-async def api_predict_compare(request: Request):
-    data = await request.json()
+async def api_predict_compare(request: Request, body: dict = Body(..., example={"symbols": ["AAPL"], "backend": "ibm_brisbane"})):
+    try:
+        data = body if body else await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or missing JSON body. Example: { 'symbols': ['AAPL'], 'backend': 'ibm_brisbane' }")
     symbols = data.get("symbols", [])
     backend = data.get("backend") or "ibm_brisbane"
+    if not symbols or not isinstance(symbols, list):
+        raise HTTPException(status_code=400, detail="'symbols' must be a non-empty list. Example: { 'symbols': ['AAPL'], 'backend': 'ibm_brisbane' }")
     results = {}
     for symbol in symbols:
         # Classical
-        classical = await api_predict_classical([symbol], request)
+        classical = api_predict_classical([symbol], request)
         # Quantum Simulator
-        quantum_sim = await api_predict_quantum_simulator([symbol], request)
+        quantum_sim = api_predict_quantum_simulator(SymbolsRequest(symbols=[symbol]), request)
         # Quantum Real Machine
-        quantum_real = await api_predict_quantum_machine(backend, [symbol], request)
+        quantum_real = quantum_machine_predict_dict(backend, [symbol])
         results[symbol] = {
             "classical": classical.get(symbol, {}),
             "quantum_simulator": quantum_sim.get(symbol, {}),

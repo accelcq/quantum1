@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-const API_URL = "http://localhost:8000"; // Change if needed
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080"; // Dynamic for env
 
 function App() {
   // State for each API input/output
@@ -134,9 +134,9 @@ function App() {
 
       {/* POST /predict/classical */}
       <section>
-        <h2>Api Predict Classical (/predict/classical)</h2>
+        <h2>Api Predict Classical (/predict/classicalML)</h2>
         <input placeholder="Comma-separated symbols" value={predictClassicalSymbols} onChange={e => setPredictClassicalSymbols(e.target.value)} />
-        <button onClick={() => post("/predict/classical", predictClassicalSymbols.split(",").map(s => s.trim()), setPredictClassicalResult)}>Predict</button>
+        <button onClick={() => post("/predict/classicalML", { symbols: predictClassicalSymbols ? predictClassicalSymbols.split(",").map(s => s.trim()) : ["AAPL"] }, setPredictClassicalResult)}>Predict</button>
         <pre>{JSON.stringify(predictClassicalResult, null, 2)}</pre>
       </section>
 
@@ -164,6 +164,14 @@ function App() {
         <input placeholder="Backend (e.g. ibm_brisbane)" value={predictCompareBackend} onChange={e => setPredictCompareBackend(e.target.value)} />
         <button onClick={() => post("/predict/compare", { symbols: predictCompareSymbols.split(",").map(s => s.trim()), backend: predictCompareBackend }, setPredictCompareResult)}>Predict</button>
         <pre>{JSON.stringify(predictCompareResult, null, 2)}</pre>
+      </section>
+
+      {/* POST /train/classicalML */}
+      <section>
+        <h2>Train Classical ML (/train/classicalML)</h2>
+        <input placeholder="Comma-separated symbols (default: AAPL)" value={predictClassicalSymbols} onChange={e => setPredictClassicalSymbols(e.target.value)} />
+        <button onClick={() => post("/train/classicalML", { symbols: predictClassicalSymbols ? predictClassicalSymbols.split(",").map(s => s.trim()) : ["AAPL"] }, setPredictClassicalResult)}>Train</button>
+        <pre>{JSON.stringify(predictClassicalResult, null, 2)}</pre>
       </section>
     </div>
   );

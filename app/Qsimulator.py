@@ -8,24 +8,17 @@ from datetime import datetime
 from typing import Any, List, Dict
 from sklearn.metrics import mean_squared_error
 
-try:
-    from main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
-except ImportError:
-    from app.main import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
+from app.shared import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step
 
 try:
-    from quantum_utils import quantum_predict
+    from quantum_utils import quantum_predict_simulator
 except ImportError:
-    from app.quantum_utils import quantum_predict
-
-try:
-    from Qtraining import some_function
-except ImportError:
-    from app.Qtraining import some_function
+    from app.quantum_utils import quantum_predict_simulator
 
 from qiskit import QuantumCircuit
 from qiskit.circuit import Parameter
 from pydantic import BaseModel
+from app.shared import api_predict_quantum_simulator
 
 # --- Use IBMQ_API_TOKEN from environment ---
 IBMQ_API_TOKEN = os.getenv("IBMQ_API_TOKEN")
@@ -73,7 +66,7 @@ def api_predict_quantum_simulator(symbols_req: SymbolsRequest, request: Request)
         y_train = y[:400]
         y_test = y[400:]
         # Simulator prediction (AerSimulator)
-        y_pred, vqr = quantum_predict(x_train, y_train, x_test, backend_name="aer_simulator")
+        y_pred, vqr = quantum_predict_simulator(x_train, y_train, x_test)
         mse = mean_squared_error(y_test, y_pred)
         result = {
             "dates": dates[400:],

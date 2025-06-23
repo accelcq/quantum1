@@ -134,8 +134,16 @@ jobs:
         docker build -t us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG .
         docker push us.icr.io/$NAMESPACE/quantum1-frontend:$IMAGE_TAG
 
+    - name: Render frontend deployment files
+      run: |
+        echo "[$(date -u)] 📝 Rendering frontend deployment files..."
+        envsubst < frontend/quantum1-frontend-deployment.yaml > rendered_frontend.yaml
+        envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
+
     - name: Deploy frontend
       run: |
+        echo "[$(date -u)] 📝 Rendering and deploying frontend..."
+        export IMAGE_TAG=$IMAGE_TAG
         kubectl apply -f rendered_frontend.yaml -n $NAMESPACE
         kubectl apply -f rendered_frontend_service.yaml -n $NAMESPACE
 
