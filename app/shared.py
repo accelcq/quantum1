@@ -73,9 +73,14 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
     log_step("DataFetch", f"DataFrame created for {symbol}, shape: {df.shape}")
     return df
 
+DATA_DIR = os.path.join(os.getcwd(), "data")
+HISTORICAL_DIR = os.path.join(DATA_DIR, "historical")
+TRAINED_DIR = os.path.join(DATA_DIR, "trained")
+PREDICTIONS_DIR = os.path.join(os.getcwd(), "data", "predictions")
+os.makedirs(PREDICTIONS_DIR, exist_ok=True)
 def fetch_and_cache_stock_data_json(symbol: str) -> pd.DataFrame:
     today = get_today_str()
-    cache_file = f"{symbol}_historical_{today}.json"
+    cache_file = os.path.join(HISTORICAL_DIR, f"{symbol}_historical_{today}.json")
     if os.path.exists(cache_file):
         log_step("DataFetch", f"Loading cached JSON data for {symbol} from {cache_file}")
         df = pd.read_json(cache_file)
@@ -107,6 +112,9 @@ def make_features(
     )
 
 def save_model(model: Any, path: str) -> None:
+    # Save models in trained folder
+    if not os.path.isabs(path):
+        path = os.path.join(TRAINED_DIR, path)
     log_step("ModelSave", f"Saving model to {path}")
     with open(path, "wb") as f:
         import pickle
@@ -114,10 +122,22 @@ def save_model(model: Any, path: str) -> None:
     log_step("ModelSave", f"Model saved to {path}")
 
 def save_train_data(data: dict[str, Any], path: str) -> None:
+    # Save training data in trained folder
+    if not os.path.isabs(path):
+        path = os.path.join(TRAINED_DIR, path)
     log_step("DataSave", f"Saving training data to {path}")
     with open(path, "w") as f:
         json.dump(data, f)
     log_step("DataSave", f"Training data saved to {path}")
+
+def save_prediction_data(data: dict[str, Any], path: str) -> None:
+    # Save predictions in predictions folder
+    if not os.path.isabs(path):
+        path = os.path.join(PREDICTIONS_DIR, path)
+    log_step("DataSave", f"Saving prediction data to {path}")
+    with open(path, "w") as f:
+        json.dump(data, f)
+    log_step("DataSave", f"Prediction data saved to {path}")
 
 def quantum_predict(
     x_train: np.ndarray,
@@ -177,7 +197,7 @@ def api_predict_quantum_simulator(symbols_req, request: Request, backend_machine
     results: dict[str, dict[str, float | list[Any] | str]] = {}
     today = datetime.now().strftime('%Y-%m-%d')
     for symbol in symbols:
-        pred_cache = f"{symbol}_quantum_sim_pred_{today}.json"
+        pred_cache = os.path.join(PREDICTIONS_DIR, f"{symbol}_quantum_sim_pred_{today}.json")
         if os.path.exists(pred_cache):
             log_step("API", f"Returning cached quantum simulator prediction for {symbol}")
             with open(pred_cache, "r") as f:
@@ -213,7 +233,7 @@ def api_predict_quantum_machine(backend: str, symbols_req, request: Request):
     today = datetime.now().strftime('%Y-%m-%d')
     def event_stream():
         for symbol in symbols:
-            pred_cache = f"{symbol}_quantum_{backend}_pred_{today}.json"
+            pred_cache = os.path.join(PREDICTIONS_DIR, f"{symbol}_quantum_{backend}_pred_{today}.json")
             if os.path.exists(pred_cache):
                 log_step("API", f"Returning cached quantum hardware prediction for {symbol}")
                 with open(pred_cache, "r") as f:
@@ -251,7 +271,7 @@ def quantum_machine_predict_dict(backend: str, symbols: list[str]) -> dict:
     results = {}
     today = datetime.now().strftime('%Y-%m-%d')
     for symbol in symbols:
-        pred_cache = f"{symbol}_quantum_{backend}_pred_{today}.json"
+        pred_cache = os.path.join(PREDICTIONS_DIR, f"{symbol}_quantum_{backend}_pred_{today}.json")
         if os.path.exists(pred_cache):
             log_step("API", f"Returning cached quantum hardware prediction for {symbol}")
             with open(pred_cache, "r") as f:

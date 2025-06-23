@@ -64,3 +64,9 @@ PYPL*
 ADBE*
 UNH*
 CRM*
+
+# data files
+data/*.csv
+data/historical/*
+data/predictions/*
+data/trained/*

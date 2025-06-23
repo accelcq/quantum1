@@ -59,6 +59,9 @@ logging.basicConfig(
 # Remove definitions of log_step, get_today_str, fetch_and_cache_stock_data_json, make_features, save_model, save_train_data
 # Import them from shared.py instead
 from app.shared import log_step, get_today_str, fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, api_predict_quantum_simulator, api_predict_quantum_machine, quantum_machine_predict_dict
+import os
+PREDICTIONS_DIR = os.path.join(os.getcwd(), "data", "predictions")
+os.makedirs(PREDICTIONS_DIR, exist_ok=True)
 
 # Load API keys from environment variables or GitHub secrets
 FMP_API_KEY, IBM_CLOUD_API_KEY, IBMQ_API_TOKEN = load_api_keys()
@@ -365,7 +368,7 @@ def api_predict_classicalML(req: SymbolsRequest, request: Request = None) -> Dic
     results: dict[str, dict[str, float | list | str]] = {}
     today = get_today_str()
     for symbol in symbols:
-        pred_cache = f"{symbol}_classical_pred_{today}.json"
+        pred_cache = os.path.join(PREDICTIONS_DIR, f"{symbol}_classical_pred_{today}.json")
         if os.path.exists(pred_cache):
             log_step("API", f"Returning cached classical prediction for {symbol}")
             with open(pred_cache, "r") as f:
@@ -504,23 +507,36 @@ app.include_router(qmachine_router)
 async def api_predict_compare(request: Request, body: dict = Body(..., example={"symbols": ["AAPL"], "backend": "ibm_brisbane"})):
     try:
         data = body if body else await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid or missing JSON body. Example: { 'symbols': ['AAPL'], 'backend': 'ibm_brisbane' }")
-    symbols = data.get("symbols", [])
-    backend = data.get("backend") or "ibm_brisbane"
-    if not symbols or not isinstance(symbols, list):
-        raise HTTPException(status_code=400, detail="'symbols' must be a non-empty list. Example: { 'symbols': ['AAPL'], 'backend': 'ibm_brisbane' }")
-    results = {}
-    for symbol in symbols:
-        # Classical
-        classical = api_predict_classical([symbol], request)
-        # Quantum Simulator
-        quantum_sim = api_predict_quantum_simulator(SymbolsRequest(symbols=[symbol]), request)
-        # Quantum Real Machine
-        quantum_real = quantum_machine_predict_dict(backend, [symbol])
-        results[symbol] = {
-            "classical": classical.get(symbol, {}),
-            "quantum_simulator": quantum_sim.get(symbol, {}),
-            "quantum_real": quantum_real.get(symbol, {})
-        }
-    return results
+        symbols = data.get("symbols", [])
+        backend = data.get("backend") or "ibm_brisbane"
+        if not symbols or not isinstance(symbols, list):
+            raise HTTPException(status_code=400, detail="'symbols' must be a non-empty list. Example: { 'symbols': ['AAPL'], 'backend': 'ibm_brisbane' }")
+        results = {}
+        for symbol in symbols:
+            try:
+                classical = api_predict_classical([symbol], request)
+                if classical is None:
+                    log_step("ERROR", f"api_predict_classical returned None for {symbol}")
+                    classical = {}
+                quantum_sim = api_predict_quantum_simulator(SymbolsRequest(symbols=[symbol]), request)
+                if quantum_sim is None:
+                    log_step("ERROR", f"api_predict_quantum_simulator returned None for {symbol}")
+                    quantum_sim = {}
+                quantum_real = quantum_machine_predict_dict(backend, [symbol])
+                if quantum_real is None:
+                    log_step("ERROR", f"quantum_machine_predict_dict returned None for {symbol}")
+                    quantum_real = {}
+                results[symbol] = {
+                    "classical": classical.get(symbol, {}),
+                    "quantum_simulator": quantum_sim.get(symbol, {}),
+                    "quantum_real": quantum_real.get(symbol, {})
+                }
+            except Exception as e:
+                log_step("ERROR", f"Exception for symbol {symbol}: {str(e)}")
+                results[symbol] = {"error": str(e)}
+        return results
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        log_step("ERROR", f"Exception in /predict/compare: {str(e)}\n{tb}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

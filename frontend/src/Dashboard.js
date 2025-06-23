@@ -241,30 +241,50 @@ const Dashboard = () => {
         <h2 className="text-xl font-semibold mb-4">8. Predict using Classical ML</h2>
         <input className="w-full px-4 py-2 mb-2 rounded-lg text-black" placeholder="Stock symbol(s), comma-separated (default: AAPL)" value={symbol} onChange={e => setSymbol(e.target.value)} />
         <button onClick={() => callAPI("POST", "/predict/classicalML", { symbols: symbol ? symbol.split(",").map(s => s.trim()) : ["AAPL"] })} className="w-full bg-teal-600 py-2 rounded-lg">Predict (Classical ML)</button>
-        {responses["/predict/classicalML"] && symbol.split(",").map(s => s.trim()).filter(s => s).map(sym => (
-          responses["/predict/classicalML"][sym] && (
+        {responses["/predict/classicalML"] && (() => {
+          const syms = symbol ? symbol.split(",").map(s => s.trim()).filter(s => s) : ["AAPL"];
+          // Build combined data for chart
+          let chartData = [];
+          syms.forEach(sym => {
+            const pred = responses["/predict/classicalML"][sym];
+            if (pred && pred.y_pred && pred.dates) {
+              pred.y_pred.forEach((y, i) => {
+                chartData.push({
+                  date: pred.dates[i],
+                  [`${sym}_Predicted`]: y,
+                  [`${sym}_Actual`]: pred.y_test?.[i]
+                });
+              });
+            }
+          });
+          // Merge by date
+          const merged = {};
+          chartData.forEach(row => {
+            if (!merged[row.date]) merged[row.date] = { date: row.date };
+            Object.assign(merged[row.date], row);
+          });
+          const mergedData = Object.values(merged);
+          const colors = ["#4ade80", "#818cf8", "#f472b6", "#fbbf24", "#06b6d4", "#a21caf", "#f59e42", "#e11d48"];
+          return (
             <>
-              <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/classicalML"][sym], null, 2)}</pre>
-              <button onClick={() => exportCSV(responses["/predict/classicalML"], `${sym}_ann_prediction.csv`)} className="mt-2 bg-yellow-500 py-1 px-3 rounded-lg">Export CSV</button>
+              <pre className="mt-2 text-xs bg-black text-white p-2 rounded overflow-x-auto">{JSON.stringify(responses["/predict/classicalML"], null, 2)}</pre>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart
-                  data={responses["/predict/classicalML"][sym].y_test.map((y, i) => ({
-                    date: responses["/predict/classicalML"][sym].dates[i],
-                    Actual: y,
-                    Predicted: responses["/predict/classicalML"][sym].y_pred[i]
-                  }))}
-                >
+                <LineChart data={mergedData}>
                   <XAxis dataKey="date" hide />
                   <YAxis />
                   <Tooltip />
                   <CartesianGrid strokeDasharray="3 3" />
-                  <Line type="monotone" dataKey="Actual" stroke="#4ade80" dot={false} />
-                  <Line type="monotone" dataKey="Predicted" stroke="#818cf8" dot={false} />
+                  {syms.map((sym, idx) => (
+                    <Line key={sym+"_Predicted"} type="monotone" dataKey={`${sym}_Predicted`} stroke={colors[idx % colors.length]} dot={false} />
+                  ))}
+                  {syms.map((sym, idx) => (
+                    <Line key={sym+"_Actual"} type="monotone" dataKey={`${sym}_Actual`} stroke="#fbbf24" dot={false} strokeDasharray="3 3" />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             </>
-          )
-        ))}
+          );
+        })()}
       </motion.div>
 
       {/* Prediction Comparison */}
@@ -278,57 +298,64 @@ const Dashboard = () => {
           const data = await callAPI("POST", "/predict/compare", { symbols: syms, backend: be });
           setResponses(prev => ({ ...prev, "/predict/compare": data }));
         }} className="w-full bg-pink-600 py-2 rounded-lg">Compare Predictions</button>
-        {responses["/predict/compare"] && symbol.split(",").map(s => s.trim()).filter(s => s).map(sym => (
-          <>
-            {/* Tabular View */}
-            <h3 className="text-lg font-semibold mt-4 mb-2">Tabular Comparison for {sym}</h3>
-            <table className="w-full text-xs bg-slate-800 rounded mb-4">
-              <thead>
-                <tr>
-                  <th className="p-2">Model</th>
-                  <th className="p-2">MSE</th>
-                  <th className="p-2">y_pred (first 5)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {['classical', 'quantum_simulator', 'quantum_real'].map(type => (
-                  <tr key={type}>
-                    <td className="p-2 font-bold">{type.replace('_', ' ').toUpperCase()}</td>
-                    <td className="p-2">{responses["/predict/compare"][sym]?.[type]?.mse ?? '-'}</td>
-                    <td className="p-2">{JSON.stringify(responses["/predict/compare"][sym]?.[type]?.y_pred?.slice(0,5) ?? [])}</td>
+        {responses["/predict/compare"] && symbol.split(",").map(s => s.trim()).filter(s => s).map(sym => {
+          // Build combined data for chart
+          const classical = responses["/predict/compare"][sym]?.classical;
+          const quantum_sim = responses["/predict/compare"][sym]?.quantum_simulator;
+          const quantum_real = responses["/predict/compare"][sym]?.quantum_real;
+          // Find the max length of y_test arrays
+          const maxLen = Math.max(
+            classical?.y_test?.length || 0,
+            quantum_sim?.y_test?.length || 0,
+            quantum_real?.y_test?.length || 0
+          );
+          // Build combined data array
+          const chartData = Array.from({ length: maxLen }).map((_, i) => ({
+            date: classical?.dates?.[i] || quantum_sim?.dates?.[i] || quantum_real?.dates?.[i] || i,
+            Classical: classical?.y_pred?.[i],
+            QuantumSimulator: quantum_sim?.y_pred?.[i],
+            QuantumReal: quantum_real?.y_pred?.[i],
+            Actual: classical?.y_test?.[i] || quantum_sim?.y_test?.[i] || quantum_real?.y_test?.[i],
+          }));
+          return (
+            <div key={sym}>
+              {/* Tabular View */}
+              <h3 className="text-lg font-semibold mt-4 mb-2">Tabular Comparison for {sym}</h3>
+              <table className="w-full text-xs bg-slate-800 rounded mb-4">
+                <thead>
+                  <tr>
+                    <th className="p-2">Model</th>
+                    <th className="p-2">MSE</th>
+                    <th className="p-2">y_pred (first 5)</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {/* Graphical View */}
-            <h3 className="text-lg font-semibold mb-2">Graphical Comparison for {sym}</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart>
-                {/* Add lines for each model if data exists */}
-                {['classical', 'quantum_simulator', 'quantum_real'].map(type =>
-                  responses["/predict/compare"][sym]?.[type]?.y_test && responses["/predict/compare"][sym]?.[type]?.y_pred ? (
-                    <Line
-                      key={type}
-                      type="monotone"
-                      dataKey={type}
-                      data={responses["/predict/compare"][sym][type].y_test.map((y, i) => ({
-                        date: responses["/predict/compare"][sym][type].dates[i],
-                        Actual: y,
-                        Predicted: responses["/predict/compare"][sym][type].y_pred[i]
-                      }))}
-                      stroke={type === 'classical' ? '#4ade80' : type === 'quantum_simulator' ? '#818cf8' : '#f472b6'}
-                      dot={false}
-                    />
-                  ) : null
-                )}
-                <XAxis dataKey="date" hide />
-                <YAxis />
-                <Tooltip />
-                <CartesianGrid strokeDasharray="3 3" />
-              </LineChart>
-            </ResponsiveContainer>
-          </>
-        ))}
+                </thead>
+                <tbody>
+                  {['classical', 'quantum_simulator', 'quantum_real'].map(type => (
+                    <tr key={type}>
+                      <td className="p-2 font-bold">{type.replace('_', ' ').toUpperCase()}</td>
+                      <td className="p-2">{responses["/predict/compare"][sym]?.[type]?.mse ?? '-'}</td>
+                      <td className="p-2">{JSON.stringify(responses["/predict/compare"][sym]?.[type]?.y_pred?.slice(0,5) ?? [])}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {/* Graphical View */}
+              <h3 className="text-lg font-semibold mb-2">Graphical Comparison for {sym}</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <XAxis dataKey="date" hide />
+                  <YAxis />
+                  <Tooltip />
+                  <CartesianGrid strokeDasharray="3 3" />
+                  {classical?.y_pred && <Line type="monotone" dataKey="Classical" stroke="#4ade80" dot={false} />}
+                  {quantum_sim?.y_pred && <Line type="monotone" dataKey="QuantumSimulator" stroke="#818cf8" dot={false} />}
+                  {quantum_real?.y_pred && <Line type="monotone" dataKey="QuantumReal" stroke="#f472b6" dot={false} />}
+                  {classical?.y_test && <Line type="monotone" dataKey="Actual" stroke="#fbbf24" dot={false} />}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          );
+        })}
       </motion.div>
     </div>
   );

@@ -46,6 +46,9 @@ def build_ansatz(num_qubits: int, depth: int = 1) -> QuantumCircuit:
 class SymbolsRequest(BaseModel):
     symbols: List[str] = ["AAPL"]
 
+PREDICTIONS_DIR = os.path.join(os.getcwd(), "data", "predictions")
+os.makedirs(PREDICTIONS_DIR, exist_ok=True)
+
 @router.post("/predict/quantum/simulator")
 def api_predict_quantum_simulator(symbols_req: SymbolsRequest, request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:
     symbols = symbols_req.symbols
@@ -53,7 +56,7 @@ def api_predict_quantum_simulator(symbols_req: SymbolsRequest, request: Request)
     results: dict[str, dict[str, float | list[Any] | str]] = {}
     today = get_today_str()
     for symbol in symbols:
-        pred_cache = f"{symbol}_quantum_sim_pred_{today}.json"
+        pred_cache = os.path.join(PREDICTIONS_DIR, f"{symbol}_quantum_sim_pred_{today}.json")
         if os.path.exists(pred_cache):
             log_step("API", f"Returning cached quantum simulator prediction for {symbol}")
             with open(pred_cache, "r") as f:
