@@ -13,6 +13,7 @@ from scipy.optimize import minimize
 from app.shared import fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, log_step, api_predict_quantum_simulator, api_predict_quantum_machine
 from qiskit.quantum_info import SparsePauliOp
 import traceback
+from app.Qsimulator import SymbolsRequest
 
 router = APIRouter()
 
@@ -79,10 +80,9 @@ def train_quantum_qnn_simulator(symbols: List[str]) -> Dict[str, str]:
     return results
 
 @router.post("/train/quantum/simulator")
-def api_train_quantum_simulator(request: Request, symbols: List[str] = None) -> dict:
-    log_step("API", "/train/quantum/simulator called")
-    if symbols is None:
-        symbols = ["AAPL"]
+def api_train_quantum_simulator(symbols_req: SymbolsRequest, request: Request) -> dict:
+    symbols = symbols_req.symbols if symbols_req.symbols else ["AAPL"]
+    log_step("API", f"/train/quantum/simulator called for symbols: {symbols}")
     result = train_quantum_qnn_simulator(symbols)
     log_step("API", "Quantum QNN simulator training complete")
     return {"status": "success", "trained": result}

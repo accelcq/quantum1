@@ -44,7 +44,7 @@ def build_ansatz(num_qubits: int, depth: int = 1) -> QuantumCircuit:
     return qc
 
 class SymbolsRequest(BaseModel):
-    symbols: List[str]
+    symbols: List[str] = ["AAPL"]
 
 @router.post("/predict/quantum/simulator")
 def api_predict_quantum_simulator(symbols_req: SymbolsRequest, request: Request) -> Dict[str, Dict[str, float | List[Any] | str]]:

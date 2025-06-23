@@ -144,7 +144,7 @@ function App() {
       <section>
         <h2>Predict Quantum Simulator (/predict/quantum/simulator)</h2>
         <input placeholder="Comma-separated symbols" value={predictQuantumSimSymbols} onChange={e => setPredictQuantumSimSymbols(e.target.value)} />
-        <button onClick={() => post("/predict/quantum/simulator", { symbols: predictQuantumSimSymbols.split(",").map(s => s.trim()) }, setPredictQuantumSimResult)}>Predict</button>
+        <button onClick={() => post("/predict/quantum/simulator", { symbols: predictQuantumSimSymbols ? predictQuantumSimSymbols.split(",").map(s => s.trim()) : ["AAPL"] }, setPredictQuantumSimResult)}>Predict</button>
         <pre>{JSON.stringify(predictQuantumSimResult, null, 2)}</pre>
       </section>
 
@@ -172,6 +172,23 @@ function App() {
         <input placeholder="Comma-separated symbols (default: AAPL)" value={predictClassicalSymbols} onChange={e => setPredictClassicalSymbols(e.target.value)} />
         <button onClick={() => post("/train/classicalML", { symbols: predictClassicalSymbols ? predictClassicalSymbols.split(",").map(s => s.trim()) : ["AAPL"] }, setPredictClassicalResult)}>Train</button>
         <pre>{JSON.stringify(predictClassicalResult, null, 2)}</pre>
+      </section>
+
+      {/* POST /train/quantum/simulator */}
+      <section>
+        <h2>Train Quantum Simulator (/train/quantum/simulator)</h2>
+        <input placeholder="Comma-separated symbols (default: AAPL)" value={predictQuantumSimSymbols} onChange={e => setPredictQuantumSimSymbols(e.target.value)} />
+        <button onClick={() => post("/train/quantum/simulator", { symbols: predictQuantumSimSymbols ? predictQuantumSimSymbols.split(",").map(s => s.trim()) : ["AAPL"] }, setPredictQuantumSimResult)}>Train</button>
+        <pre>{JSON.stringify(predictQuantumSimResult, null, 2)}</pre>
+      </section>
+
+      {/* POST /train/quantum/machine/{backend} */}
+      <section>
+        <h2>Train Quantum Machine (/train/quantum/machine/&#123;backend&#125;)</h2>
+        <input placeholder="Comma-separated symbols (default: AAPL)" value={predictQuantumMachineSymbols} onChange={e => setPredictQuantumMachineSymbols(e.target.value)} />
+        <input placeholder="Backend (e.g. ibm_brisbane)" value={predictQuantumMachineBackend} onChange={e => setPredictQuantumMachineBackend(e.target.value)} />
+        <button onClick={() => post(`/train/quantum/machine/${predictQuantumMachineBackend}`, { symbols: predictQuantumMachineSymbols ? predictQuantumMachineSymbols.split(",").map(s => s.trim()) : ["AAPL"] }, setPredictQuantumMachineResult)}>Train</button>
+        <pre>{JSON.stringify(predictQuantumMachineResult, null, 2)}</pre>
       </section>
     </div>
   );

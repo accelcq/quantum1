@@ -1,7 +1,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse # type: ignore
 from fastapi.staticfiles import StaticFiles # type: ignore
-from fastapi import FastAPI, Request, Depends, HTTPException, status, Response # type: ignore
+from fastapi import FastAPI, Request, Depends, HTTPException, status, Response, Body # type: ignore
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -143,22 +143,28 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/predict-stock-simulator")
-def predict_stock(current_user: dict[str, Any] = Depends(get_current_user)):
-    log_step("User", f"Prediction requested by user: {current_user.get('username', 'unknown')}")
-    log_step("Quantum Circuit", "Creating quantum circuit for stock prediction in qasm simulator")
-    # Simple quantum circuit: 1 qubit, 1 classical bit
-    qc = QuantumCircuit(1, 1)
-    qc.h(0)  # Superposition: simulates uncertainty in stock movement
-    qc.measure(0, 0)
-    backend = Aer.get_backend('aer_simulator')
-    job = backend.run(qc, shots=100)
-    result = job.result()
-    counts = result.get_counts(qc)
-    log_step("Execution", f"Quantum circuit executed, counts: {counts}")
-    # Interpret result: 0 = stock down, 1 = stock up
-    prediction = "up" if counts.get('1', 0) > counts.get('0', 0) else "down"
-    log_step("Prediction", f"Predicted stock movement: {prediction}")
-    return {"prediction": prediction, "counts": counts}
+def predict_stock(request: Request, body: dict = Body({"symbols": ["AAPL"]})):
+    # Accepts: { "symbols": "AAPL,GOOGL" } or { "symbols": ["AAPL", "GOOGL"] }
+    symbols = body.get("symbols", ["AAPL"])
+    if isinstance(symbols, str):
+        symbols = [s.strip() for s in symbols.split(",") if s.strip()]
+    if not symbols:
+        symbols = ["AAPL"]
+    results = {}
+    for symbol in symbols:
+        log_step("User", f"Prediction requested for symbol: {symbol}")
+        log_step("Quantum Circuit", f"Creating quantum circuit for {symbol} in qasm simulator")
+        qc = QuantumCircuit(1, 1)
+        qc.h(0)
+        qc.measure(0, 0)
+        backend = Aer.get_backend('aer_simulator')
+        job = backend.run(qc, shots=100)
+        result = job.result()
+        counts = result.get_counts(qc)
+        prediction = "up" if counts.get('1', 0) > counts.get('0', 0) else "down"
+        log_step("Prediction", f"Predicted movement for {symbol}: {prediction}")
+        results[symbol] = {"prediction": prediction, "counts": counts}
+    return results
 
 @app.get("/logs", response_model=List[LogEntry])
 def get_logs(current_user: dict[str, Any] = Depends(get_current_user)) -> List[LogEntry]:

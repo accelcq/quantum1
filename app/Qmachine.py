@@ -31,7 +31,9 @@ class SymbolsRequest(BaseModel):
 
 @router.post("/predict/quantum/machine/{backend}")
 def predict_quantum_machine(backend: str, symbols_req: SymbolsRequest, request: Request):
-    return api_predict_quantum_machine(backend, symbols_req, request)
+    # Return JSON dict for dashboard/frontend compatibility
+    from app.shared import quantum_machine_predict_dict
+    return quantum_machine_predict_dict(backend, symbols_req.symbols)
 
 @router.post("/train/quantum/machine/{backend}")
 def train_quantum_machine_backend(backend: str = "ibm_brisbane", symbols_req: SymbolsRequest = None, request: Request = None):
