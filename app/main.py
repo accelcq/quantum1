@@ -352,7 +352,11 @@ from fastapi import Body
 def api_historical_data(symbol: str, request: Request) -> List[Dict[str, Any]]:
     log_step("API", f"GET /historical-data/{symbol} called")
     check_ibm_keys()
-    df = fetch_stock_data(symbol)
+    try:
+        df = fetch_and_cache_stock_data_json(symbol)
+    except Exception as e:
+        log_step("API", f"Historical data not found for {symbol}: {e}")
+        raise HTTPException(status_code=404, detail=f"No historical data found for {symbol}")
     log_step("API", f"Returning historical data for {symbol}")
     records = df.to_dict(orient="records")
     return [{str(k): v for k, v in record.items()} for record in records]

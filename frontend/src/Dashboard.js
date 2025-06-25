@@ -2,7 +2,13 @@ import { useState } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { motion } from "framer-motion";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
+// Dynamically choose backend URL based on frontend location
+let API_URL;
+if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+  API_URL = "http://localhost:8080";
+} else {
+  API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8080";
+}
 
 const symbolsList = ["AAPL", "GOOG", "MSFT", "TSLA", "AMZN", "META", "NVDA", "NFLX", "IBM", "INTC"];
 
