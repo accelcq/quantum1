@@ -15,9 +15,22 @@ spec:
     spec:
       containers:
       - name: quantum1-backend
-        image: us.icr.io/quantum1space/quantum1-backend:${IMAGE_TAG}
+        image: us.icr.io/${NAMESPACE}/quantum1-backend:${IMAGE_TAG}
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
+        env:
+        - name: FMP_API_KEY
+          value: "${FMP_API_KEY}"
+        - name: IBM_CLOUD_API_KEY
+          value: "${IBM_CLOUD_API_KEY}"
+        - name: IBM_CLOUD_REGION
+          value: "${REGION}"
+        - name: IBM_CLOUD_NAMESPACE
+          value: "${NAMESPACE}"
+        - name: IBMQ_API_TOKEN
+          value: "${IBMQ_API_TOKEN}"
+        - name: IBM_CLOUD_ENV
+          value: "true"
         command: ["python", "-m", "uvicorn"]
         args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]

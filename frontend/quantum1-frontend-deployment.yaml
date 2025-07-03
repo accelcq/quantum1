@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: quantum1-frontend
-        image: us.icr.io/quantum1space/quantum1-frontend:${IMAGE_TAG}
+        image: us.icr.io/${NAMESPACE}/quantum1-frontend:${IMAGE_TAG}
         imagePullPolicy: Always
         ports:
         - containerPort: 80

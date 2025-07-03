@@ -18,6 +18,7 @@ jobs:
       CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
       IBM_CLOUD_API_KEY: ${{ secrets.IBM_CLOUD_API_KEY }}
       IBMQ_API_TOKEN: ${{ secrets.IBMQ_API_TOKEN }}
+      FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
 
     steps:
     - name: Checkout repository
@@ -72,6 +73,14 @@ jobs:
         echo "NAMESPACE: ${NAMESPACE:-MISSING}"
         echo "IMAGE_TAG: ${IMAGE_TAG:-MISSING}"
 
+    - name: Debug Environment Variables (for deployment)
+      run: |
+        echo "🔎 Verifying API keys and secrets..."
+        echo "FMP_API_KEY: ${FMP_API_KEY:0:10}..."
+        echo "IBM_CLOUD_API_KEY: ${IBM_CLOUD_API_KEY:0:10}..."
+        echo "IBMQ_API_TOKEN: ${IBMQ_API_TOKEN:0:10}..."
+        echo "All environment variables verified for backend deployment."
+
     - name: Clean up old images in IBM CR (avoid quota exceeded)
       run: |
         bash deleteibmcloudcrimages.sh
@@ -83,8 +92,17 @@ jobs:
 
     - name: Render backend deployment file
       run: |
+        echo "[$(date -u)] 📝 Rendering backend deployment files..."
+        export IMAGE_TAG=$IMAGE_TAG
+        export NAMESPACE=$NAMESPACE
+        export REGION=$REGION
+        export IBM_CLOUD_API_KEY="$IBM_CLOUD_API_KEY"
+        export IBMQ_API_TOKEN="$IBMQ_API_TOKEN"
+        export FMP_API_KEY="$FMP_API_KEY"
         envsubst < quantum1-backend-deployment.yaml > rendered_backend.yaml
         envsubst < quantum1-backend-service.yaml > rendered_backend_service.yaml
+        echo "📋 Rendered backend deployment preview:"
+        head -30 rendered_backend.yaml
 
     - name: Build and push backend Docker image
       run: |
@@ -137,13 +155,16 @@ jobs:
     - name: Render frontend deployment files
       run: |
         echo "[$(date -u)] 📝 Rendering frontend deployment files..."
+        export IMAGE_TAG=$IMAGE_TAG
+        export NAMESPACE=$NAMESPACE
         envsubst < frontend/quantum1-frontend-deployment.yaml > rendered_frontend.yaml
         envsubst < frontend/quantum1-frontend-service.yaml > rendered_frontend_service.yaml
+        echo "📋 Rendered frontend deployment preview:"
+        head -20 rendered_frontend.yaml
 
     - name: Deploy frontend
       run: |
-        echo "[$(date -u)] 📝 Rendering and deploying frontend..."
-        export IMAGE_TAG=$IMAGE_TAG
+        echo "[$(date -u)] � Deploying frontend..."
         kubectl apply -f rendered_frontend.yaml -n $NAMESPACE
         kubectl apply -f rendered_frontend_service.yaml -n $NAMESPACE
 

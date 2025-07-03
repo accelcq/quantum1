@@ -41,24 +41,38 @@ const Dashboard = () => {
     data.append('username', login.username);
     data.append('password', login.password);
 
-    fetch(`${API_URL}/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: data,
-    })
-    .then(response => response.json())
-    .then(data => {
-      // handle success
-      setToken(data.access_token);
-    })
-    .catch(error => {
-      // handle error
-    });
+    try {
+      const response = await fetch(`${API_URL}/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: data,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Login failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Login response:', result);
+      
+      if (result.access_token) {
+        setToken(result.access_token);
+        console.log('Token set:', result.access_token.slice(0, 20) + '...');
+        alert('Login successful!');
+      } else {
+        throw new Error('No access token received');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      alert(`Login failed: ${error.message}`);
+    }
   };
 
   const callAPI = async (method, url, body) => {
+    console.log('Making API call:', { method, url, hasToken: !!token, authHeader });
+    
     const config = {
       method,
       headers: {
@@ -67,10 +81,26 @@ const Dashboard = () => {
       },
     };
     if (body) config.body = JSON.stringify(body);
-    const res = await fetch(`${API_URL}${url}`, config);
-    const data = await res.json();
-    setResponses(prev => ({ ...prev, [url]: data }));
-    return data;
+    
+    try {
+      const res = await fetch(`${API_URL}${url}`, config);
+      console.log('API response status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('API error response:', errorText);
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+      
+      const data = await res.json();
+      setResponses(prev => ({ ...prev, [url]: data }));
+      return data;
+    } catch (error) {
+      console.error('API call failed:', error);
+      const errorData = { error: error.message };
+      setResponses(prev => ({ ...prev, [url]: errorData }));
+      return errorData;
+    }
   };
 
   const fetchChartData = async () => {
