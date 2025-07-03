@@ -47,17 +47,25 @@ def load_api_keys(dotenv_file: Optional[str] = None):
     })
 
     if os.getenv("IBM_CLOUD_ENV") == "true":
-        log_step("Config", "Detected IBM Cloud environment, loading secrets")
-        try:
-            with open('/mnt/secrets-store/FMP_API_KEY', 'r') as f:
-                fmp_api_key = f.read().strip()
-            with open('/mnt/secrets-store/IBM_CLOUD_API_KEY', 'r') as f:
-                ibm_cloud_api_key = f.read().strip()
-            with open('/mnt/secrets-store/IBMQ_API_TOKEN', 'r') as f:
-                ibmq_api_token = f.read().strip()
-        except Exception as e:
-            log_step("Config", f"Failed to load IBM Cloud secrets: {str(e)}")
-            raise EnvironmentError("IBM Cloud secrets missing or inaccessible")
+        log_step("Config", "Detected IBM Cloud environment, checking for secrets")
+        
+        # First try environment variables (if set via Kubernetes deployment)
+        if fmp_api_key and ibm_cloud_api_key and ibmq_api_token:
+            log_step("Config", "Using API keys from environment variables")
+        else:
+            # Fallback to secrets store files
+            log_step("Config", "Environment variables not complete, trying secrets store")
+            try:
+                with open('/mnt/secrets-store/FMP_API_KEY', 'r') as f:
+                    fmp_api_key = f.read().strip()
+                with open('/mnt/secrets-store/IBM_CLOUD_API_KEY', 'r') as f:
+                    ibm_cloud_api_key = f.read().strip()
+                with open('/mnt/secrets-store/IBMQ_API_TOKEN', 'r') as f:
+                    ibmq_api_token = f.read().strip()
+                log_step("Config", "Successfully loaded from secrets store")
+            except Exception as e:
+                log_step("Config", f"Failed to load IBM Cloud secrets: {str(e)}")
+                raise EnvironmentError("IBM Cloud secrets missing or inaccessible")
 
     log_step("Config", "All API keys loaded successfully")
     return fmp_api_key, ibm_cloud_api_key, ibmq_api_token
