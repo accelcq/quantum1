@@ -20,4 +20,4 @@ spec:
         ports:
         - containerPort: 8080
         command: ["python", "-m", "uvicorn"]
-        args: ["main:app", "--host", "0.0.0.0", "--port", "8080"]
+        args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]

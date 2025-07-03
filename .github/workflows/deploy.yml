@@ -199,6 +199,10 @@ jobs:
         kubectl get pods -n $NAMESPACE || true
         echo "Describing all pods:"
         kubectl describe pods -n $NAMESPACE || true
+        kubectl get svc quantum1-backend-service -n quantum1space || true
+        echo "Describing backend service:"
+        kubectl describe svc quantum1-backend-service -n quantum1space || true
+        kubectl describe pod -l app=quantum1-backend -n $NAMESPACE || true
         echo "Backend logs:"
         kubectl logs -l app=quantum1-backend -n $NAMESPACE --tail=100 || true
         echo "Frontend logs:"

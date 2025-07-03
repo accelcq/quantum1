@@ -74,10 +74,32 @@ const Dashboard = () => {
   };
 
   const fetchChartData = async () => {
-    const res = await fetch(`${API_URL}/historical-data/${symbol}`);
-    const data = await res.json();
-    setChartData(data.map(day => ({ date: day.date, close: day.close })));
-    setResponses(prev => ({ ...prev, ["/historical"]: data }));
+    try {
+      const res = await fetch(`${API_URL}/historical-data/${symbol}`, {
+        method: 'GET',
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader
+        }
+      });
+      
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+      
+      const data = await res.json();
+      
+      if (Array.isArray(data)) {
+        setChartData(data.map(day => ({ date: day.date, close: day.close })));
+        setResponses(prev => ({ ...prev, ["/historical"]: data }));
+      } else {
+        console.error('Expected array but got:', data);
+        alert(`Error: ${data.detail || 'Invalid data format received'}`);
+      }
+    } catch (error) {
+      console.error('Failed to fetch chart data:', error);
+      alert(`Failed to fetch data: ${error.message}`);
+    }
   };
 
   const exportCSV = (data, filename = "export.csv") => {
