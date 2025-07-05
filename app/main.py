@@ -206,7 +206,28 @@ def version():
 @app.get("/docs", include_in_schema=False)
 def custom_docs():
     return {"message": "Custom Swagger UI is not available in this version. Use /docs for the default Swagger UI."}
-    
+
+@app.get("/test-connectivity")
+def test_connectivity():
+    import socket
+    hostname = "financialmodelingprep.com"
+    port = 443
+    try:
+        ip_address = socket.gethostbyname(hostname)
+        log_step("ConnectivityTest", f"Successfully resolved {hostname} to {ip_address}")
+        
+        sock = socket.create_connection((hostname, port), timeout=10)
+        sock.close()
+        log_step("ConnectivityTest", f"Successfully connected to {hostname} on port {port}")
+        
+        return {"status": "success", "message": f"Successfully connected to {hostname}"}
+    except socket.gaierror as e:
+        log_step("ConnectivityTest", f"DNS resolution failed for {hostname}: {e}")
+        raise HTTPException(status_code=500, detail=f"DNS resolution failed for {hostname}: {e}")
+    except (socket.timeout, ConnectionRefusedError, OSError) as e:
+        log_step("ConnectivityTest", f"Connection to {hostname} on port {port} failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Connection to {hostname} on port {port} failed: {e}")
+
 # --- new code added for stock prediction ---
 
 # --- Data Fetching ---

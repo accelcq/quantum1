@@ -104,15 +104,26 @@ const Dashboard = () => {
   };
 
   const fetchChartData = async () => {
+    console.log(`Fetching chart data for ${symbol}...`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.error('Request timed out!');
+      alert('Request timed out! The backend is taking too long to respond.');
+    }, 60000); // 60-second timeout
+
     try {
       const res = await fetch(`${API_URL}/historical-data/${symbol}`, {
         method: 'GET',
         headers: {
           "Content-Type": "application/json",
           ...authHeader
-        }
+        },
+        signal: controller.signal
       });
-      
+
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
       }
