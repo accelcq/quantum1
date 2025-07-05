@@ -19,18 +19,18 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
+        # Use secrets for sensitive data
+        envFrom:
+        - secretRef:
+            name: quantum1-secrets
         env:
-        - name: FMP_API_KEY
-          value: "${FMP_API_KEY}"
-        - name: IBM_CLOUD_API_KEY
-          value: "${IBM_CLOUD_API_KEY}"
         - name: IBM_CLOUD_REGION
           value: "${REGION}"
         - name: IBM_CLOUD_NAMESPACE
           value: "${NAMESPACE}"
-        - name: IBMQ_API_TOKEN
-          value: "${IBMQ_API_TOKEN}"
         - name: IBM_CLOUD_ENV
           value: "true"
+        - name: PORT
+          value: "8080"
         command: ["python", "-m", "uvicorn"]
         args: ["app.main:app", "--host", "0.0.0.0", "--port", "8080"]

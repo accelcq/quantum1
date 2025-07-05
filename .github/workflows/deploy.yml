@@ -64,6 +64,30 @@ jobs:
     - name: Install tools
       run: sudo apt-get update && sudo apt-get install -y gettext curl
 
+    - name: Create/Update Kubernetes secrets
+      run: |
+        echo "🔑 Creating/updating Kubernetes secrets from environment variables..."
+        
+        # Delete existing secret if it exists (ignore errors)
+        kubectl delete secret quantum1-secrets -n "$NAMESPACE" || true
+        
+        # Create new secret with all required environment variables
+        kubectl create secret generic quantum1-secrets \
+          --from-literal=FMP_API_KEY="$FMP_API_KEY" \
+          --from-literal=IBM_CLOUD_API_KEY="$IBM_CLOUD_API_KEY" \
+          --from-literal=IBMQ_API_TOKEN="$IBMQ_API_TOKEN" \
+          --from-literal=IBM_CLOUD_REGION="$REGION" \
+          --from-literal=IBM_CLOUD_NAMESPACE="$NAMESPACE" \
+          --from-literal=K8S_CLUSTER_NAME="$CLUSTER_NAME" \
+          --from-literal=IBM_CLOUD_RESOURCE_GROUP="$RESOURCE_GROUP" \
+          --from-literal=IBM_CLOUD_ENV="true" \
+          -n "$NAMESPACE"
+        
+        echo "✅ Kubernetes secret 'quantum1-secrets' created/updated successfully"
+        
+        # Verify the secret was created (show keys but not values)
+        kubectl get secret quantum1-secrets -n "$NAMESPACE" -o jsonpath='{.data}' | jq -r 'keys[]' || echo "Secret created but verification failed"
+
     - name: Print Environment Variables
       run: |
         echo "🔎 Verifying environment variables..."
@@ -122,22 +146,45 @@ jobs:
         echo "[$(date -u)] 🚀 Deploying backend..."
         kubectl apply -f rendered_backend.yaml -n $NAMESPACE
         kubectl apply -f rendered_backend_service.yaml -n $NAMESPACE
+        
+        # Wait for deployment to be ready
+        echo "⏳ Waiting for backend deployment to be ready..."
+        kubectl rollout status deployment/quantum1-backend -n $NAMESPACE --timeout=300s
+        
+        # Verify secrets are loaded in the pod
+        echo "🔍 Verifying secrets are available in backend pod..."
+        BACKEND_POD=$(kubectl get pods -n $NAMESPACE -l app=quantum1-backend -o jsonpath='{.items[0].metadata.name}')
+        if [ -n "$BACKEND_POD" ]; then
+          echo "Testing environment variables in pod $BACKEND_POD:"
+          kubectl exec -n $NAMESPACE $BACKEND_POD -- printenv | grep -E "(FMP_API_KEY|IBM_CLOUD_API_KEY|IBMQ_API_TOKEN)" | sed 's/=.*/=***REDACTED***/' || echo "❌ Could not verify secrets in pod"
+        else
+          echo "❌ No backend pod found"
+        fi
 
     - name: Wait for backend service external IP
       id: wait-backend-ip
       run: |
         echo "⏳ Waiting for backend service external IP..."
         for i in {1..30}; do
+          # Try both hostname and IP formats (IBM Cloud can use either)
           BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ -z "$BACKEND_IP" ]; then
+            BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+          fi
+          
           if [ -n "$BACKEND_IP" ]; then
             echo "✅ Backend IP: $BACKEND_IP"
             echo "BACKEND_IP=$BACKEND_IP" >> $GITHUB_ENV
             break
           fi
+          echo "⏳ Waiting for backend service external IP... ($i/30)"
           sleep 10
         done
+        
         if [ -z "$BACKEND_IP" ]; then
-          echo "❌ Backend external IP not found."
+          echo "❌ Backend external IP not found after 5 minutes."
+          echo "Service status:"
+          kubectl get svc quantum1-backend-service -n $NAMESPACE -o yaml
           exit 1
         fi
 
@@ -178,8 +225,16 @@ jobs:
 
     - name: Health Check for Services
       run: |
+        # Get IPs with fallback for both hostname and IP formats
         FRONTEND_IP=$(kubectl get svc quantum1-frontend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        if [ -z "$FRONTEND_IP" ]; then
+          FRONTEND_IP=$(kubectl get svc quantum1-frontend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        fi
+        
         BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+        if [ -z "$BACKEND_IP" ]; then
+          BACKEND_IP=$(kubectl get svc quantum1-backend-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+        fi
 
         echo "🌐 Frontend: http://$FRONTEND_IP"
         echo "🌐 Backend: http://$BACKEND_IP:8080/docs"

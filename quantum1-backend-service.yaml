@@ -3,7 +3,6 @@ apiVersion: v1
 kind: Service
 metadata:
   name: quantum1-backend-service
-  namespace: quantum1space
 spec:
   selector:
     app: quantum1-backend
@@ -12,16 +11,3 @@ spec:
       port: 8080
       targetPort: 8080
   type: LoadBalancer
-  loadBalancerIP: "{{ loadBalancerIP }}"
-  # Uncomment the following line if you want to use a specific load balancer IP 
-  # loadBalancerIP: "{{ loadBalancerIP }}"
-  # Uncomment the following line if you want to use a specific external IP  
-  # externalIPs:
-  #   - "{{ externalIP }}"  
-  # Uncomment the following line if you want to use a specific cluster IP
-  # clusterIP: "{{ clusterIP }}"
-  # Uncomment the following line if you want to use a specific session affinity
-  # sessionAffinity: Client
-  # Uncomment the following line if you want to use a specific health check node port
-  # healthCheckNodePort: 30080
-  # Uncomment the following line if you want to use a specific load balancer source ranges
