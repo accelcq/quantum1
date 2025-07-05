@@ -34,8 +34,8 @@ ibmcloud login --apikey $IBM_CLOUD_API_KEY
 if [ -n "$IBM_CLOUD_RESOURCE_GROUP" ]; then
   ibmcloud target -g "$IBM_CLOUD_RESOURCE_GROUP"
 fi
-ibmcloud target -r us-south
-ibmcloud cr region-set $REGION
+ibmcloud target -r $IBM_CLOUD_REGION
+#ibmcloud cr region-set $REGION
 # No 'namespace-set' command; ensure namespace exists instead
 ibmcloud cr login
 # Ensure jq is installed for JSON parsing
