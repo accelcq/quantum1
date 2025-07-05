@@ -70,3 +70,10 @@ data/*.csv
 data/historical/*
 data/predictions/*
 data/trained/*
+*ann*.json
+*ann*.h5
+*ann*.pkl
+*ann*.onnx
+*historical*.json
+*historical*.h5
+*historical*.pkl
