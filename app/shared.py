@@ -122,6 +122,11 @@ DATA_DIR = os.path.join(os.getcwd(), "data")
 HISTORICAL_DIR = os.path.join(DATA_DIR, "historical")
 TRAINED_DIR = os.path.join(DATA_DIR, "trained")
 PREDICTIONS_DIR = os.path.join(os.getcwd(), "data", "predictions")
+
+# Ensure all required directories exist
+os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(HISTORICAL_DIR, exist_ok=True)
+os.makedirs(TRAINED_DIR, exist_ok=True)
 os.makedirs(PREDICTIONS_DIR, exist_ok=True)
 def fetch_and_cache_stock_data_json(symbol: str) -> pd.DataFrame:
     today = get_today_str()

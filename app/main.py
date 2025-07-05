@@ -233,12 +233,6 @@ def check_ibm_keys():
 MODEL_PATH: str = "quantum1_model.pkl"
 DATA_PATH: str = "quantum1_train_data.json"
 
-def save_model(model: Any, path: str = MODEL_PATH) -> None:
-    log_step("ModelSave", f"Saving model to {path}")
-    with open(path, "wb") as f:
-        pickle.dump(model, f)
-    log_step("ModelSave", f"Model saved to {path}")
-
 def load_model(path: str = MODEL_PATH) -> Any:
     log_step("ModelLoad", f"Loading model from {path}")
     with open(path, "rb") as f:
@@ -259,12 +253,6 @@ def load_trained_model(symbol: str, model_type: str):
     with open(model_file, "rb") as f:
         return pickle.load(f)
 
-def save_train_data(data: dict[str, Any], path: str = DATA_PATH) -> None:
-    log_step("DataSave", f"Saving training data to {path}")
-    with open(path, "w") as f:
-        json.dump(data, f)
-    log_step("DataSave", f"Training data saved to {path}")
-
 def load_train_data(path: str = DATA_PATH) -> dict[str, Any]:
     log_step("DataLoad", f"Loading training data from {path}")
     with open(path, "r") as f:
@@ -275,27 +263,6 @@ def load_train_data(path: str = DATA_PATH) -> dict[str, Any]:
 # --- Feature Engineering ---
 from typing import Tuple, Any
 from numpy.typing import NDArray
-
-def make_features(
-    df: pd.DataFrame,
-    window: int = 2,
-    col: str = 'open',
-    n_points: int = 500
-) -> Tuple[NDArray[np.float64], NDArray[np.float64], list[str]]:
-    log_step("FeatureEngineering", f"Creating features with window={window}, col={col}, n_points={n_points}")
-    final_data: pd.DataFrame = df[[col, 'date']][:n_points]
-    input_sequences: list[list[float]] = []
-    labels: list[float] = []
-    col_series = final_data[col].astype(float)
-    for i in range(window, len(col_series)):
-        labels.append(float(col_series.iloc[i]))
-        input_sequences.append([float(x) for x in col_series.iloc[i-window:i].tolist()])
-    log_step("FeatureEngineering", f"Features created: {len(input_sequences)} samples")
-    return (
-        np.array(input_sequences, dtype=np.float64),
-        np.array(labels, dtype=np.float64),
-        final_data['date'].iloc[window:].astype(str).tolist()
-    )
 
 # --- Classical ML ---
 # from numpy.typing import NDArray

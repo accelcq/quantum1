@@ -1,9 +1,7 @@
 # app/config.py
 import os
 from dotenv import load_dotenv
-
-def log_step(category: str, message: str) -> None:
-    print(f"{category}: {message}")
+from .shared import log_step
 
 from typing import Dict, List
 
