@@ -58,7 +58,7 @@ logging.basicConfig(
 
 # Remove definitions of log_step, get_today_str, fetch_and_cache_stock_data_json, make_features, save_model, save_train_data
 # Import them from shared.py instead
-from app.shared import log_step, get_today_str, fetch_and_cache_stock_data_json, make_features, save_model, save_train_data, api_predict_quantum_simulator, api_predict_quantum_machine, quantum_machine_predict_dict
+from app.shared import log_step, get_today_str, fetch_and_cache_stock_data_json, fetch_stock_data, make_features, save_model, save_train_data, api_predict_quantum_simulator, api_predict_quantum_machine, quantum_machine_predict_dict
 import os
 PREDICTIONS_DIR = os.path.join(os.getcwd(), "data", "predictions")
 os.makedirs(PREDICTIONS_DIR, exist_ok=True)
@@ -223,41 +223,11 @@ def check_ibm_keys():
         log_step("APIKeyCheck", "FMP_API_KEY is empty, invalid, or not set.")
         raise HTTPException(status_code=401, detail="Invalid Financial Modeling Prep API Key")
 
-def fetch_stock_data(symbol: str) -> pd.DataFrame:
-    log_step("DataFetch", f"Fetching stock data for symbol: {symbol}")
-    if not FMP_API_KEY or FMP_API_KEY == "FMP_API_KEY":
-        log_step("DataFetch", "FMP_API_KEY is not set or is invalid.")
-        #raise HTTPException(status_code=500, detail="FMP_API_KEY is not set or is invalid.")
-    url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?apikey={FMP_API_KEY}" #22CeNg7buOXdCS5Veour2wyJD7QnkOKV
-    #url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?apikey=22CeNg7buOXdCS5Veour2wyJD7QnkOKV"
-    log_step("DataFetch", f"Requesting URL: {url}")
-    r = requests.get(url)
-    log_step("DataFetch", f"HTTP status: {r.status_code}")
-    if r.status_code != 200:
-        log_step("DataFetch", f"Failed to fetch data for {symbol}, status code: {r.status_code}, response: {r.text}")
-        raise HTTPException(status_code=500, detail="Failed to fetch data")
-    data = r.json()
-    log_step("DataFetch", f"Data fetched for {symbol}, normalizing JSON")
-    if 'historical' not in data or not data['historical']:
-        log_step("DataFetch", f"No historical data found in response for {symbol}. Response: {data}")
-        raise HTTPException(status_code=404, detail=f"No historical data found for {symbol}")
-    df: pd.DataFrame = pd.json_normalize(data, 'historical', ['symbol'])
-    df = df.sort_values('date').reset_index(drop=True)
-    log_step("DataFetch", f"DataFrame created for {symbol}, shape: {df.shape}")
-    return df
+# Use the robust fetch_stock_data function from shared.py instead of the local one
 
 # --- Data Fetching with Daily JSON Cache ---
-def fetch_and_cache_stock_data_json(symbol: str) -> pd.DataFrame:
-    today = get_today_str()
-    cache_file = f"{symbol}_historical_{today}.json"
-    if os.path.exists(cache_file):
-        log_step("DataFetch", f"Loading cached JSON data for {symbol} from {cache_file}")
-        df = pd.read_json(cache_file)
-        return df
-    df = fetch_stock_data(symbol)
-    df.to_json(cache_file, orient="records")
-    log_step("DataFetch", f"Fetched and cached JSON data for {symbol} to {cache_file}")
-    return df
+# Use the robust fetch_and_cache_stock_data_json function from shared.py
+# (imported at the top of this file)
 
 # --- Model Save/Load ---
 MODEL_PATH: str = "quantum1_model.pkl"
