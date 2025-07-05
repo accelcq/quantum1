@@ -128,6 +128,12 @@ jobs:
         echo "📋 Rendered backend deployment preview:"
         head -30 rendered_backend.yaml
 
+    - name: Apply backend egress network policy
+      run: |
+        echo "[$(date -u)] 🌐 Applying backend egress network policy..."
+        kubectl apply -f allow-backend-egress-https.yaml -n $NAMESPACE
+        echo "✅ NetworkPolicy applied."
+
     - name: Build and push backend Docker image
       run: |
         echo "[$(date -u)] 🚀 Building backend Docker image..."
