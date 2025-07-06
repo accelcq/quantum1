@@ -209,24 +209,61 @@ def custom_docs():
 
 @app.get("/test-connectivity")
 def test_connectivity():
+    """Test connectivity to external APIs and services"""
+    import requests
     import socket
-    hostname = "financialmodelingprep.com"
-    port = 443
+    from datetime import datetime
+    
+    results = {
+        "timestamp": datetime.now().isoformat(),
+        "tests": {}
+    }
+    
+    # Test DNS resolution
     try:
-        ip_address = socket.gethostbyname(hostname)
-        log_step("ConnectivityTest", f"Successfully resolved {hostname} to {ip_address}")
-        
-        sock = socket.create_connection((hostname, port), timeout=10)
-        sock.close()
-        log_step("ConnectivityTest", f"Successfully connected to {hostname} on port {port}")
-        
-        return {"status": "success", "message": f"Successfully connected to {hostname}"}
-    except socket.gaierror as e:
-        log_step("ConnectivityTest", f"DNS resolution failed for {hostname}: {e}")
-        raise HTTPException(status_code=500, detail=f"DNS resolution failed for {hostname}: {e}")
-    except (socket.timeout, ConnectionRefusedError, OSError) as e:
-        log_step("ConnectivityTest", f"Connection to {hostname} on port {port} failed: {e}")
-        raise HTTPException(status_code=500, detail=f"Connection to {hostname} on port {port} failed: {e}")
+        socket.gethostbyname("financialmodelingprep.com")
+        results["tests"]["dns_resolution"] = {"status": "success", "message": "DNS resolution working"}
+    except Exception as e:
+        results["tests"]["dns_resolution"] = {"status": "error", "message": str(e)}
+    
+    # Test HTTPS connectivity to FMP API
+    try:
+        response = requests.get("https://financialmodelingprep.com", timeout=5)
+        results["tests"]["fmp_https"] = {
+            "status": "success", 
+            "message": f"HTTPS connection successful, status: {response.status_code}"
+        }
+    except requests.exceptions.Timeout:
+        results["tests"]["fmp_https"] = {"status": "timeout", "message": "HTTPS connection timed out"}
+    except Exception as e:
+        results["tests"]["fmp_https"] = {"status": "error", "message": str(e)}
+    
+    # Test FMP API with a simple endpoint
+    try:
+        fmp_key = os.getenv("FMP_API_KEY", "test")
+        test_url = f"https://financialmodelingprep.com/api/v3/quote/AAPL?apikey={fmp_key}"
+        response = requests.get(test_url, timeout=3)
+        results["tests"]["fmp_api"] = {
+            "status": "success" if response.status_code == 200 else "error",
+            "message": f"FMP API response: {response.status_code}",
+            "content_length": len(response.content) if response.content else 0
+        }
+    except requests.exceptions.Timeout:
+        results["tests"]["fmp_api"] = {"status": "timeout", "message": "FMP API call timed out"}
+    except Exception as e:
+        results["tests"]["fmp_api"] = {"status": "error", "message": str(e)}
+    
+    # Test general internet connectivity
+    try:
+        response = requests.get("https://httpbin.org/ip", timeout=3)
+        results["tests"]["internet"] = {
+            "status": "success",
+            "message": f"Internet connectivity working, status: {response.status_code}"
+        }
+    except Exception as e:
+        results["tests"]["internet"] = {"status": "error", "message": str(e)}
+    
+    return results
 
 # --- new code added for stock prediction ---
 

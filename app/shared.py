@@ -68,7 +68,15 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
     for i, url in enumerate(urls_to_try):
         try:
             log_step("DataFetch", f"Attempting URL {i+1}/3: {url}")
-            r = requests.get(url, timeout=3)
+            # Use session for better connection handling
+            session = requests.Session()
+            session.headers.update({
+                'User-Agent': 'Quantum1-Backend/1.0',
+                'Accept': 'application/json',
+                'Connection': 'close'
+            })
+            
+            r = session.get(url, timeout=3)
             log_step("DataFetch", f"HTTP status: {r.status_code}")
             
             if r.status_code == 200:
@@ -111,6 +119,15 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
                         return df
                         
             log_step("DataFetch", f"URL {i+1} failed with status {r.status_code}: {r.text[:200]}")
+        except requests.exceptions.ConnectTimeout:
+            log_step("DataFetch", f"URL {i+1} failed: Connection timeout after 3 seconds")
+            continue
+        except requests.exceptions.ReadTimeout:
+            log_step("DataFetch", f"URL {i+1} failed: Read timeout after 3 seconds")
+            continue
+        except requests.exceptions.ConnectionError as e:
+            log_step("DataFetch", f"URL {i+1} failed: Connection error - {str(e)}")
+            continue
         except Exception as e:
             log_step("DataFetch", f"URL {i+1} failed with exception: {str(e)}")
             continue
