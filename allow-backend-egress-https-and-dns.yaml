@@ -10,28 +10,5 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # Allow all HTTPS traffic (port 443) for external API calls
+    # Allow all outbound traffic (simplified approach)
     - to: []
-      ports:
-        - protocol: TCP
-          port: 443
-    # Allow all HTTP traffic (port 80) as fallback
-    - to: []
-      ports:
-        - protocol: TCP
-          port: 80
-    # Allow DNS resolution (UDP and TCP port 53)
-    - to: []
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    # Allow cluster internal communication
-    - to:
-        - ipBlock:
-            cidr: 10.0.0.0/8
-        - ipBlock:
-            cidr: 172.16.0.0/12
-        - ipBlock:
-            cidr: 192.168.0.0/16

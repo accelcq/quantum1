@@ -4,8 +4,8 @@ import requests
 import time
 import json
 
-# Backend URL
-BACKEND_URL = "http://f3ea7191-us-south.lb.appdomain.cloud:8080"
+# Backend URL - current production deployment in us-south
+BACKEND_URL = "http://f3ea7191-us-south.lb.appdomain.cloud:8080"  # Production URL in us-south
 
 def test_endpoint(endpoint, method="GET", data=None, timeout=30):
     """Test an endpoint and return response time and status"""

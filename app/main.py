@@ -208,62 +208,61 @@ def custom_docs():
     return {"message": "Custom Swagger UI is not available in this version. Use /docs for the default Swagger UI."}
 
 @app.get("/test-connectivity")
-def test_connectivity():
-    """Test connectivity to external APIs and services"""
+async def test_connectivity():
+    """Test connectivity to external APIs"""
     import requests
-    import socket
-    from datetime import datetime
+    test_results = {}
     
-    results = {
-        "timestamp": datetime.now().isoformat(),
-        "tests": {}
-    }
+    # Test basic internet connectivity
+    try:
+        response = requests.get("https://httpbin.org/get", timeout=5)
+        test_results["httpbin"] = {
+            "status": response.status_code,
+            "success": response.status_code == 200,
+            "response_time": response.elapsed.total_seconds()
+        }
+    except Exception as e:
+        test_results["httpbin"] = {
+            "status": "error",
+            "success": False,
+            "error": str(e)
+        }
+    
+    # Test FMP API connectivity
+    try:
+        FMP_API_KEY = os.getenv("FMP_API_KEY")
+        response = requests.get(
+            f"https://financialmodelingprep.com/api/v3/quote/AAPL?apikey={FMP_API_KEY}",
+            timeout=5
+        )
+        test_results["fmp_api"] = {
+            "status": response.status_code,
+            "success": response.status_code == 200,
+            "response_time": response.elapsed.total_seconds(),
+            "data_length": len(response.text)
+        }
+    except Exception as e:
+        test_results["fmp_api"] = {
+            "status": "error",
+            "success": False,
+            "error": str(e)
+        }
     
     # Test DNS resolution
     try:
+        import socket
         socket.gethostbyname("financialmodelingprep.com")
-        results["tests"]["dns_resolution"] = {"status": "success", "message": "DNS resolution working"}
-    except Exception as e:
-        results["tests"]["dns_resolution"] = {"status": "error", "message": str(e)}
-    
-    # Test HTTPS connectivity to FMP API
-    try:
-        response = requests.get("https://financialmodelingprep.com", timeout=5)
-        results["tests"]["fmp_https"] = {
-            "status": "success", 
-            "message": f"HTTPS connection successful, status: {response.status_code}"
-        }
-    except requests.exceptions.Timeout:
-        results["tests"]["fmp_https"] = {"status": "timeout", "message": "HTTPS connection timed out"}
-    except Exception as e:
-        results["tests"]["fmp_https"] = {"status": "error", "message": str(e)}
-    
-    # Test FMP API with a simple endpoint
-    try:
-        fmp_key = os.getenv("FMP_API_KEY", "test")
-        test_url = f"https://financialmodelingprep.com/api/v3/quote/AAPL?apikey={fmp_key}"
-        response = requests.get(test_url, timeout=3)
-        results["tests"]["fmp_api"] = {
-            "status": "success" if response.status_code == 200 else "error",
-            "message": f"FMP API response: {response.status_code}",
-            "content_length": len(response.content) if response.content else 0
-        }
-    except requests.exceptions.Timeout:
-        results["tests"]["fmp_api"] = {"status": "timeout", "message": "FMP API call timed out"}
-    except Exception as e:
-        results["tests"]["fmp_api"] = {"status": "error", "message": str(e)}
-    
-    # Test general internet connectivity
-    try:
-        response = requests.get("https://httpbin.org/ip", timeout=3)
-        results["tests"]["internet"] = {
-            "status": "success",
-            "message": f"Internet connectivity working, status: {response.status_code}"
+        test_results["dns"] = {
+            "success": True,
+            "message": "DNS resolution successful"
         }
     except Exception as e:
-        results["tests"]["internet"] = {"status": "error", "message": str(e)}
+        test_results["dns"] = {
+            "success": False,
+            "error": str(e)
+        }
     
-    return results
+    return test_results
 
 # --- new code added for stock prediction ---
 
