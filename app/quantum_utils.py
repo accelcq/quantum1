@@ -1,4 +1,4 @@
-# Quantum utilities with fallback prediction - Updated for CORS fix
+# Quantum utilities with fallback prediction - Updated for new IBM Quantum token (July 2025)
 import numpy as np
 from qiskit.circuit.library import PauliFeatureMap
 from qiskit.circuit import ParameterVector
