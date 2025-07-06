@@ -68,7 +68,7 @@ def fetch_stock_data(symbol: str) -> pd.DataFrame:
     for i, url in enumerate(urls_to_try):
         try:
             log_step("DataFetch", f"Attempting URL {i+1}/3: {url}")
-            r = requests.get(url, timeout=10)
+            r = requests.get(url, timeout=3)
             log_step("DataFetch", f"HTTP status: {r.status_code}")
             
             if r.status_code == 200:
@@ -130,23 +130,56 @@ os.makedirs(TRAINED_DIR, exist_ok=True)
 os.makedirs(PREDICTIONS_DIR, exist_ok=True)
 def fetch_and_cache_stock_data_json(symbol: str) -> pd.DataFrame:
     today = get_today_str()
-    cache_file = os.path.join(HISTORICAL_DIR, f"{symbol}_historical_{today}.json")
     
-    # Step 1: Check if we have today's cached data (highest priority)
-    if os.path.exists(cache_file):
-        log_step("DataFetch", f"Loading today's cached data for {symbol} from {cache_file}")
+    # Step 1: Check for cached data (case-insensitive) - highest priority
+    log_step("DataFetch", f"Looking for cached data for {symbol}")
+    import glob
+    
+    # Check for today's cache file (case-insensitive)
+    cache_patterns = [
+        os.path.join(HISTORICAL_DIR, f"{symbol}_historical_{today}.json"),
+        os.path.join(HISTORICAL_DIR, f"{symbol.lower()}_historical_{today}.json"),
+        os.path.join(HISTORICAL_DIR, f"{symbol.upper()}_historical_{today}.json")
+    ]
+    
+    for cache_file in cache_patterns:
+        if os.path.exists(cache_file):
+            log_step("DataFetch", f"Loading today's cached data for {symbol} from {cache_file}")
+            try:
+                df = pd.read_json(cache_file)
+                log_step("DataFetch", f"Successfully loaded today's cached data for {symbol}")
+                return df
+            except Exception as e:
+                log_step("DataFetch", f"Failed to load today's cached data for {symbol}: {e}")
+    
+    # Check for any existing cached data for this symbol (any date, case-insensitive)
+    pattern_variants = [
+        os.path.join(HISTORICAL_DIR, f"{symbol}_historical_*.json"),
+        os.path.join(HISTORICAL_DIR, f"{symbol.lower()}_historical_*.json"),
+        os.path.join(HISTORICAL_DIR, f"{symbol.upper()}_historical_*.json")
+    ]
+    
+    existing_files = []
+    for pattern in pattern_variants:
+        existing_files.extend(glob.glob(pattern))
+    
+    if existing_files:
+        # Use the most recent file
+        latest_file = max(existing_files, key=os.path.getmtime)
+        log_step("DataFetch", f"📁 Using existing cached data for {symbol} from {latest_file}")
         try:
-            df = pd.read_json(cache_file)
-            log_step("DataFetch", f"Successfully loaded today's cached data for {symbol}")
+            df = pd.read_json(latest_file)
+            log_step("DataFetch", f"Successfully loaded existing cached data for {symbol}")
             return df
         except Exception as e:
-            log_step("DataFetch", f"Failed to load today's cached data for {symbol}: {e}")
+            log_step("DataFetch", f"Failed to load existing cached data for {symbol}: {e}")
     
-    # Step 2: Try to fetch fresh data from API (second priority)
-    log_step("DataFetch", f"Attempting to fetch fresh data for {symbol} from FMP API")
+    # Step 2: Try to fetch fresh data from API (lower priority now)
+    log_step("DataFetch", f"No cached data found, attempting to fetch fresh data for {symbol} from FMP API")
     try:
         df = fetch_stock_data(symbol)
-        # Cache the fresh data for today
+        # Cache the fresh data for today (use uppercase symbol for consistency)
+        cache_file = os.path.join(HISTORICAL_DIR, f"{symbol.upper()}_historical_{today}.json")
         os.makedirs(HISTORICAL_DIR, exist_ok=True)
         df.to_json(cache_file, orient="records")
         log_step("DataFetch", f"✅ Fresh data fetched and cached for {symbol} to {cache_file}")
@@ -214,7 +247,8 @@ def fetch_and_cache_stock_data_json(symbol: str) -> pd.DataFrame:
             })
         
         df = pd.DataFrame(synthetic_data)
-        # Cache the synthetic data
+        # Cache the synthetic data (use uppercase symbol for consistency)
+        cache_file = os.path.join(HISTORICAL_DIR, f"{symbol.upper()}_historical_{today}.json")
         df.to_json(cache_file, orient="records")
         log_step("DataFetch", f"🔧 Synthetic data created and cached for {symbol}")
         return df
