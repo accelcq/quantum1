@@ -1,3 +1,4 @@
+# Quantum utilities with fallback prediction - Updated for CORS fix
 import numpy as np
 from qiskit.circuit.library import PauliFeatureMap
 from qiskit.circuit import ParameterVector
