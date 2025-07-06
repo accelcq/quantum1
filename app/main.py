@@ -70,13 +70,16 @@ FMP_API_KEY, IBM_CLOUD_API_KEY, IBMQ_API_TOKEN = load_api_keys()
 app = FastAPI()
 
 # Add CORS middleware
-from fastapi.middleware.cors import CORSMiddleware
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or specify your frontend domain(s) for better security
+    allow_origins=[
+        "*",  # Allow all origins for development
+        "http://localhost:3000",  # React dev server
+        "http://3dc94c6e-us-south.lb.appdomain.cloud",  # Frontend deployment
+        "https://3dc94c6e-us-south.lb.appdomain.cloud",  # Frontend deployment HTTPS
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

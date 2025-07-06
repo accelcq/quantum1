@@ -64,15 +64,33 @@ def api_predict_quantum_simulator(symbols_req: SymbolsRequest, request: Request)
             continue
         df = fetch_and_cache_stock_data_json(symbol)
         x, y, dates = make_features(df)
-        x_train = x[:400]
-        x_test = x[400:]
-        y_train = y[:400]
-        y_test = y[400:]
+        
+        # Validate that we have enough data
+        if len(x) < 450:  # Need at least 450 samples for 400 train + 50 test
+            log_step("API", f"Insufficient data for {symbol}: {len(x)} samples (need at least 450)")
+            # Use smaller split for insufficient data
+            split_point = max(10, len(x) - 10)  # Leave at least 10 for testing
+            x_train = x[:split_point]
+            x_test = x[split_point:]
+            y_train = y[:split_point]
+            y_test = y[split_point:]
+        else:
+            x_train = x[:400]
+            x_test = x[400:]
+            y_train = y[:400]
+            y_test = y[400:]
+        
+        log_step("API", f"Data split for {symbol}: train={len(x_train)}, test={len(x_test)}")
+        
         # Simulator prediction (AerSimulator)
         y_pred, vqr = quantum_predict_simulator(x_train, y_train, x_test)
         mse = mean_squared_error(y_test, y_pred)
+        
+        # Adjust dates array to match the test data
+        test_dates = dates[len(x_train):len(x_train) + len(x_test)]
+        
         result = {
-            "dates": dates[400:],
+            "dates": test_dates,
             "y_test": y_test.tolist(),
             "y_pred": y_pred.tolist(),
             "mse": mse,
