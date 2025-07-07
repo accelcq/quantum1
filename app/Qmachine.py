@@ -64,8 +64,11 @@ def train_quantum_machine_backend(backend: str = "ibm_brisbane", symbols_req: Sy
                 ansatz.ry(params[i], i)
             from qiskit_ibm_runtime import QiskitRuntimeService
             from qiskit.primitives import Estimator
-            service = QiskitRuntimeService(token=IBMQ_API_TOKEN, channel="ibm_quantum")
-            estimator = Estimator(options={"backend": backend})
+            # Use the new IBM Quantum Platform authentication
+            service = QiskitRuntimeService(channel="ibm_quantum", token=IBMQ_API_TOKEN)
+            # Get the backend through the service
+            backend_instance = service.backend(backend)
+            estimator = Estimator(options={"backend": backend_instance})
             observable = SparsePauliOp("Z" + "I" * (num_features - 1))
             def objective(theta):
                 values = []

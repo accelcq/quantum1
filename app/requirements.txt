@@ -1,6 +1,6 @@
 qiskit==1.0.0 # Core Qiskit library # For quantum computing
 qiskit-ibm-provider>=0.7.0 # For accessing IBM Quantum devices
-qiskit-ibm-runtime>=0.23.0 # For accessing IBM Quantum services
+qiskit-ibm-runtime>=0.40.1 # For accessing IBM Quantum services
 qiskit-machine-learning>=0.7.0 # For machine learning applications
 numpy>=1.21.0 # For numerical operations
 fastapi>=0.70.0 # For building APIs
