@@ -1,4 +1,4 @@
-qiskit==1.0.0 # Core Qiskit library # For quantum computing
+qiskit>=1.4.1 # Core Qiskit library # For quantum computing
 qiskit-ibm-provider>=0.7.0 # For accessing IBM Quantum devices
 qiskit-ibm-runtime>=0.40.1 # For accessing IBM Quantum services
 qiskit-machine-learning>=0.7.0 # For machine learning applications
@@ -18,7 +18,7 @@ pytest>=6.2.0 # For running tests
 pytest-asyncio>=0.15.1
 httpx>=0.18.0 # For making HTTP requests in tests
 # Optional dependencies for advanced features
-qiskit-aer==0.13.3
+qiskit-aer>=0.15.0
 # Optional dependencies for specific use cases
 qiskit-nature>=0.3.0 # For quantum chemistry applications
 qiskit-finance>=0.3.0 # For financial applications

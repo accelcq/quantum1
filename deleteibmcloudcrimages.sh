@@ -59,6 +59,10 @@ if ! ibmcloud cr namespace-list | grep -q "$NAMESPACE"; then
   exit 1
 fi
 
+# Run retention policy to delete all images (no retention)
+echo "Running retention policy to delete all images in $NAMESPACE..."
+ibmcloud cr retention-run --namespace $NAMESPACE --retention 0
+
 # List all images in the namespace and delete them by digest
 images_output=$(ibmcloud cr image-digests --restrict $NAMESPACE 2>&1)
 status=$?
