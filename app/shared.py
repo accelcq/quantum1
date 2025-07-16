@@ -506,4 +506,31 @@ def quantum_machine_predict_dict(backend: str, symbols: list[str]) -> dict:
             results[symbol] = {"error": str(e)}
     return results
 
+def get_quantum_service():
+    """Get IBM Quantum service with new authentication"""
+    try:
+        token = os.getenv("IBMQ_API_TOKEN")
+        if not token:
+            log_step("QuantumAuth", "IBM Quantum token not found")
+            return None
+        
+        # Use new IBM Quantum Platform authentication - FIXED
+        service = QiskitRuntimeService(channel="ibm_quantum", token=token)
+        return service
+    except Exception as e:
+        log_step("QuantumAuth", f"Authentication failed: {str(e)}")
+        return None
+
+def get_quantum_backends():
+    """Get available quantum backends with new authentication"""
+    try:
+        service = get_quantum_service()
+        if service:
+            backends = service.backends()
+            return [backend.name for backend in backends]
+        return []
+    except Exception as e:
+        log_step("QuantumBackends", f"Error getting backends: {str(e)}")
+        return []
+
 # Add any other shared functions here
