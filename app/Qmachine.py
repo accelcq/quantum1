@@ -155,3 +155,19 @@ def train_quantum_model_real_machine(symbol: str, backend_name: str) -> dict:
     except Exception as e:
         log_step("QuantumTrain", f"Error training quantum model: {str(e)}")
         return {"error": str(e)}
+
+def predict_quantum_machine_single(symbol, days, backend):
+    """Predict using quantum machine for a single symbol, days, and backend."""
+    from app.shared import get_quantum_service
+    service = get_quantum_service()
+    if not service:
+        raise Exception("IBM Quantum service authentication failed.")
+    try:
+        qbackend = service.backend(backend)
+        # Dummy prediction logic (replace with real quantum prediction)
+        import numpy as np
+        pred = np.random.normal(100, 5, days)
+        meta = {"backend": backend, "symbol": symbol}
+        return pred, meta
+    except Exception as e:
+        raise Exception(f"Quantum prediction failed for {symbol} on {backend}: {str(e)}")

@@ -5,7 +5,7 @@ const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080"; // Dyn
 function App() {
   // State for each API input/output
   const [loginData, setLoginData] = useState({ username: "", password: "" });
-  const [token, setToken] = useState(null); // token is the whole object from /token
+  const [token, setToken] = useState("");
   const [predictSimSymbol, setPredictSimSymbol] = useState("");
   const [predictSimResult, setPredictSimResult] = useState(null);
   const [logs, setLogs] = useState("");
@@ -21,6 +21,10 @@ function App() {
   const [predictCompareSymbols, setPredictCompareSymbols] = useState("");
   const [predictCompareBackend, setPredictCompareBackend] = useState("ibm_brisbane");
   const [predictCompareResult, setPredictCompareResult] = useState(null);
+  // Add state for quantum machine prediction
+  const [quantumSymbols, setQuantumSymbols] = useState(["AAPL"]);
+  const [quantumDays, setQuantumDays] = useState(5);
+  const [quantumBackend, setQuantumBackend] = useState("ibm_brisbane");
 
   const getAuthHeader = () =>
     token && token.access_token
@@ -72,6 +76,35 @@ function App() {
       setToken(await res.json());
     } catch (e) {
       setToken({ error: e.message });
+    }
+  };
+
+  // Handler for quantum machine prediction
+  const handleQuantumMachinePredict = async () => {
+    if (!token) {
+      alert("You must sign in to authenticate before making predictions.");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `/predict/quantum/machine/${quantumBackend}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            symbols: quantumSymbols,
+            days: quantumDays,
+          }),
+        }
+      );
+      const data = await response.json();
+      // handle/display data as needed
+      console.log("Quantum Machine Prediction Response", data);
+    } catch (err) {
+      console.error("Quantum Machine Prediction Error", err);
     }
   };
 
@@ -190,6 +223,36 @@ function App() {
         <button onClick={() => post(`/train/quantum/machine/${predictQuantumMachineBackend}`, { symbols: predictQuantumMachineSymbols ? predictQuantumMachineSymbols.split(",").map(s => s.trim()) : ["AAPL"] }, setPredictQuantumMachineResult)}>Train</button>
         <pre>{JSON.stringify(predictQuantumMachineResult, null, 2)}</pre>
       </section>
+
+      {/* Predict using Quantum Machine */}
+      <div className="bg-slate-700 shadow-xl rounded-2xl p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Predict using Quantum Machine</h2>
+        <input
+          className="w-full px-4 py-2 mb-2 rounded-lg text-black"
+          placeholder="Stock symbols (comma separated, e.g. AAPL,MSFT)"
+          value={quantumSymbols.join(",")}
+          onChange={e => setQuantumSymbols(e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+        />
+        <input
+          className="w-full px-4 py-2 mb-2 rounded-lg text-black"
+          type="number"
+          placeholder="Days (default: 5)"
+          value={quantumDays}
+          onChange={e => setQuantumDays(Number(e.target.value))}
+        />
+        <input
+          className="w-full px-4 py-2 mb-2 rounded-lg text-black"
+          placeholder="Quantum backend (default: ibm_brisbane)"
+          value={quantumBackend}
+          onChange={e => setQuantumBackend(e.target.value)}
+        />
+        <button
+          onClick={handleQuantumMachinePredict}
+          className="w-full bg-indigo-700 py-2 rounded-lg mt-2"
+        >
+          Predict (Quantum Machine)
+        </button>
+      </div>
     </div>
   );
 }

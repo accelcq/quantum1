@@ -10,7 +10,7 @@ import logging
 from typing import Any, List, Dict, Optional
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv  # type: ignore
-import os, requests, json, pickle
+import os, requests, json, pickle, time
 
 # Load environment variables from .env.local
 load_dotenv(dotenv_path=".env.local")
@@ -541,3 +541,338 @@ async def api_predict_compare(request: Request, body: dict = Body(..., example={
         tb = traceback.format_exc()
         log_step("ERROR", f"Exception in /predict/compare: {str(e)}\n{tb}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@app.post("/predict/quantum/machine/{backend}")
+async def predict_quantum_machine(
+    backend: str = "ibm_brisbane",
+    payload: dict = Body(...)
+):
+    symbols = payload.get("symbols", [])
+    days = payload.get("days", 5)
+    if not symbols or not isinstance(symbols, list):
+        return {"error": "Please provide a list of stock symbols as 'symbols' in the request body."}
+    from app.shared import predict_quantum_machine_multi
+    results = predict_quantum_machine_multi(symbols, days, backend)
+    return {"status": "success", "predictions": results}
+
+from fastapi import Body
+
+class AdvancedPredictRequest(BaseModel):
+    symbols: list[str]
+    data_source: str
+    start_date: str
+    market: str
+    data_period: str
+    model_type: str
+
+@app.post("/predict/advanced")
+def predict_advanced(request: AdvancedPredictRequest, user: dict = Depends(get_current_user)):
+    log_step("API", f"POST /predict/advanced called for symbols: {request.symbols}, data_source: {request.data_source}, start_date: {request.start_date}, market: {request.market}, data_period: {request.data_period}, model_type: {request.model_type}")
+    check_ibm_keys()
+    
+    # Validate all parameters before processing
+    validate_advanced_prediction_params(
+        data_source=request.data_source,
+        market=request.market,
+        data_period=request.data_period,
+        model_type=request.model_type,
+        start_date=request.start_date
+    )
+    
+    results = {}
+    
+    for symbol in request.symbols:
+        start_time = time.time()
+        try:
+            log_step("API", f"Processing symbol: {symbol}")
+            
+            # Step 1: Collect historical data
+            data_fetch_start = time.time()
+            df = fetch_stock_data_custom(
+                symbol=symbol,
+                start_date=request.start_date,
+                data_period=request.data_period,
+                data_source=request.data_source
+            )
+            data_fetch_time = time.time() - data_fetch_start
+            log_step("API", f"Fetched {len(df)} rows of data for {symbol} in {data_fetch_time:.2f}s")
+            
+            # Step 2: Create features from the historical data
+            feature_start = time.time()
+            x, y, dates = make_features(df)
+            feature_time = time.time() - feature_start
+            
+            if len(x) < 10 or len(y) < 10:
+                results[symbol] = {
+                    "error": f"Not enough data for prediction. Got {len(x)} samples, need at least 10.",
+                    "data_rows": len(df),
+                    "features_created": len(x),
+                    "data_fetch_time": data_fetch_time,
+                    "feature_creation_time": feature_time
+                }
+                continue
+            
+            # Step 3: Split data for training and testing
+            split_point = int(len(x) * 0.8)
+            x_train = x[:split_point] if split_point > 0 else x[:-1]
+            x_test = x[split_point:] if split_point < len(x) else x[-1:]
+            y_train = y[:split_point] if split_point > 0 else y[:-1]
+            y_test = y[split_point:] if split_point < len(y) else y[-1:]
+            
+            if len(x_test) == 0:
+                x_test = x[-1:] 
+                y_test = y[-1:]
+            
+            # Step 4: Train and predict based on model type
+            if request.model_type == "Classical ML Mode":
+                log_step("API", f"Training and predicting with Classical ML for {symbol}")
+                
+                # Training phase
+                train_start = time.time()
+                y_pred, model = classical_predict(x_train, y_train, x_test)
+                train_time = time.time() - train_start
+                
+                # Prediction accuracy metrics
+                mse = mean_squared_error(y_test, y_pred)
+                mae = np.mean(np.abs(y_test - y_pred))
+                rmse = np.sqrt(mse)
+                
+                # Calculate R² score
+                from sklearn.metrics import r2_score
+                r2 = r2_score(y_test, y_pred)
+                
+                # Calculate directional accuracy (up/down prediction)
+                y_test_direction = np.diff(y_test) > 0
+                y_pred_direction = np.diff(y_pred) > 0
+                directional_accuracy = np.mean(y_test_direction == y_pred_direction) if len(y_test_direction) > 0 else 0
+                
+                results[symbol] = {
+                    "dates": dates[split_point:] if len(dates) > split_point else dates[-len(y_pred):],
+                    "y_test": y_test.tolist(),
+                    "y_pred": y_pred.tolist(),
+                    "model_type": "classicalML",
+                    "data_period": request.data_period,
+                    "data_source": request.data_source,
+                    "train_samples": len(x_train),
+                    "test_samples": len(x_test),
+                    # Performance metrics
+                    "accuracy_metrics": {
+                        "mse": float(mse),
+                        "mae": float(mae),
+                        "rmse": float(rmse),
+                        "r2_score": float(r2),
+                        "directional_accuracy": float(directional_accuracy)
+                    },
+                    # Timing metrics
+                    "timing_metrics": {
+                        "data_fetch_time": data_fetch_time,
+                        "feature_creation_time": feature_time,
+                        "training_time": train_time,
+                        "total_time": time.time() - start_time
+                    }
+                }
+                
+            elif request.model_type == "Quantum ML Simulator":
+                log_step("API", f"Training and predicting with Quantum ML Simulator for {symbol}")
+                try:
+                    # Training and prediction phase
+                    train_start = time.time()
+                    
+                    # Use existing quantum simulator prediction
+                    from app.shared import api_predict_quantum_simulator
+                    from app.Qsimulator import SymbolsRequest
+                    quantum_result = api_predict_quantum_simulator(SymbolsRequest(symbols=[symbol]), None)
+                    
+                    train_time = time.time() - train_start
+                    
+                    if quantum_result and symbol in quantum_result:
+                        qresult = quantum_result[symbol]
+                        y_pred = np.array(qresult.get("y_pred", []))
+                        y_test_quantum = np.array(qresult.get("y_test", []))
+                        
+                        # Align prediction and test data lengths
+                        min_len = min(len(y_pred), len(y_test_quantum))
+                        if min_len > 0:
+                            y_pred = y_pred[:min_len]
+                            y_test_quantum = y_test_quantum[:min_len]
+                            
+                            # Calculate accuracy metrics
+                            mse = mean_squared_error(y_test_quantum, y_pred)
+                            mae = np.mean(np.abs(y_test_quantum - y_pred))
+                            rmse = np.sqrt(mse)
+                            
+                            from sklearn.metrics import r2_score
+                            r2 = r2_score(y_test_quantum, y_pred)
+                            
+                            # Directional accuracy
+                            y_test_direction = np.diff(y_test_quantum) > 0 if len(y_test_quantum) > 1 else []
+                            y_pred_direction = np.diff(y_pred) > 0 if len(y_pred) > 1 else []
+                            directional_accuracy = np.mean(y_test_direction == y_pred_direction) if len(y_test_direction) > 0 else 0
+                            
+                            results[symbol] = {
+                                **qresult,
+                                "model_type": "quantumML_simulator",
+                                "data_period": request.data_period,
+                                "data_source": request.data_source,
+                                "quantum_backend": "aer_simulator",
+                                "accuracy_metrics": {
+                                    "mse": float(mse),
+                                    "mae": float(mae),
+                                    "rmse": float(rmse),
+                                    "r2_score": float(r2),
+                                    "directional_accuracy": float(directional_accuracy)
+                                },
+                                "timing_metrics": {
+                                    "data_fetch_time": data_fetch_time,
+                                    "feature_creation_time": feature_time,
+                                    "training_time": train_time,
+                                    "total_time": time.time() - start_time
+                                }
+                            }
+                        else:
+                            results[symbol] = {"error": "No valid prediction data from quantum simulator"}
+                    else:
+                        results[symbol] = {"error": "Quantum simulator prediction failed"}
+                        
+                except Exception as e:
+                    log_step("ERROR", f"Quantum simulator prediction failed for {symbol}: {str(e)}")
+                    results[symbol] = {"error": f"Quantum simulator prediction failed: {str(e)}"}
+                    
+            elif request.model_type == "Quantum ML Real Machine":
+                log_step("API", f"Training and predicting with Quantum ML Real Machine for {symbol}")
+                try:
+                    # Training and prediction phase
+                    train_start = time.time()
+                    
+                    # Use quantum real machine prediction
+                    from app.shared import quantum_machine_predict_dict
+                    quantum_result = quantum_machine_predict_dict("ibm_brisbane", [symbol])
+                    
+                    train_time = time.time() - train_start
+                    
+                    if quantum_result and symbol in quantum_result:
+                        qresult = quantum_result[symbol]
+                        y_pred = np.array(qresult.get("y_pred", []))
+                        
+                        # Use last few data points as test data for comparison
+                        test_days = min(5, len(y))
+                        y_test_quantum = y[-test_days:] if test_days > 0 else []
+                        test_dates = dates[-test_days:] if test_days > 0 and len(dates) >= test_days else []
+                        
+                        if len(y_test_quantum) > 0 and len(y_pred) > 0:
+                            # Align lengths
+                            min_len = min(len(y_pred), len(y_test_quantum))
+                            y_pred_aligned = y_pred[:min_len]
+                            y_test_aligned = y_test_quantum[:min_len]
+                            
+                            # Calculate accuracy metrics
+                            mse = mean_squared_error(y_test_aligned, y_pred_aligned)
+                            mae = np.mean(np.abs(y_test_aligned - y_pred_aligned))
+                            rmse = np.sqrt(mse)
+                            
+                            from sklearn.metrics import r2_score
+                            r2 = r2_score(y_test_aligned, y_pred_aligned)
+                            
+                            # Directional accuracy
+                            y_test_direction = np.diff(y_test_aligned) > 0 if len(y_test_aligned) > 1 else []
+                            y_pred_direction = np.diff(y_pred_aligned) > 0 if len(y_pred_aligned) > 1 else []
+                            directional_accuracy = np.mean(y_test_direction == y_pred_direction) if len(y_test_direction) > 0 else 0
+                            
+                            results[symbol] = {
+                                "dates": test_dates[:min_len],
+                                "y_test": y_test_aligned.tolist(),
+                                "y_pred": y_pred_aligned.tolist(),
+                                "model_type": "quantumML_real_machine",
+                                "data_period": request.data_period,
+                                "data_source": request.data_source,
+                                "quantum_backend": "ibm_brisbane",
+                                "prediction_days": test_days,
+                                "accuracy_metrics": {
+                                    "mse": float(mse),
+                                    "mae": float(mae),
+                                    "rmse": float(rmse),
+                                    "r2_score": float(r2),
+                                    "directional_accuracy": float(directional_accuracy)
+                                },
+                                "timing_metrics": {
+                                    "data_fetch_time": data_fetch_time,
+                                    "feature_creation_time": feature_time,
+                                    "training_time": train_time,
+                                    "total_time": time.time() - start_time
+                                }
+                            }
+                        else:
+                            results[symbol] = {"error": "No valid data for quantum real machine prediction"}
+                    else:
+                        results[symbol] = {"error": "Quantum real machine prediction failed"}
+                        
+                except Exception as e:
+                    log_step("ERROR", f"Quantum real machine prediction failed for {symbol}: {str(e)}")
+                    results[symbol] = {"error": f"Quantum real machine prediction failed: {str(e)}"}
+                    
+            else:
+                results[symbol] = {"error": f"Model type '{request.model_type}' not implemented. Available: 'Classical ML Mode', 'Quantum ML Simulator', 'Quantum ML Real Machine'"}
+                
+        except Exception as e:
+            log_step("ERROR", f"Error in advanced prediction for {symbol}: {str(e)}")
+            results[symbol] = {
+                "error": str(e),
+                "timing_metrics": {
+                    "total_time": time.time() - start_time
+                }
+            }
+    
+    return {"status": "success", "results": results}
+
+# --- Data Validation Functions ---
+def validate_advanced_prediction_params(data_source: str, market: str, data_period: str, model_type: str, start_date: str):
+    """Validate parameters for advanced prediction"""
+    
+    # Validate data source
+    supported_data_sources = ["Financial Modeling Prep", "Yahoo Finance"]
+    if data_source not in supported_data_sources:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported data source '{data_source}'. Supported sources: {', '.join(supported_data_sources)}"
+        )
+    
+    # Validate market
+    supported_markets = ["US - United States", "EU - Europe", "IN - India"]
+    if market not in supported_markets:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported market '{market}'. Supported markets: {', '.join(supported_markets)}"
+        )
+    
+    # Validate data period
+    supported_periods = ["Short-term (1-7 da)", "Medium-term (8-30 da)", "Long-term (31+ da)"]
+    if data_period not in supported_periods:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported data period '{data_period}'. Supported periods: {', '.join(supported_periods)}"
+        )
+    
+    # Validate model type
+    supported_models = ["Classical ML Mode", "Quantum ML Simulator", "Quantum ML Real Machine"]
+    if model_type not in supported_models:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Unsupported model type '{model_type}'. Supported models: {', '.join(supported_models)}"
+        )
+    
+    # Validate date format
+    try:
+        from datetime import datetime
+        datetime.strptime(start_date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid date format: {start_date}. Use YYYY-MM-DD format."
+        )
+    
+    # Special warnings
+    if data_source == "Yahoo Finance":
+        log_step("API", f"Warning: Yahoo Finance fallback - custom date range may not be applied")
+    
+    if market != "US - United States":
+        log_step("API", f"Warning: Market '{market}' may have limited stock symbol support")

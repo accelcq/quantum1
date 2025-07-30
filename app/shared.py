@@ -506,6 +506,18 @@ def quantum_machine_predict_dict(backend: str, symbols: list[str]) -> dict:
             results[symbol] = {"error": str(e)}
     return results
 
+def predict_quantum_machine_multi(symbols, days, backend):
+    """Predict using quantum machine for multiple symbols and days on specified backend."""
+    from app.Qmachine import predict_quantum_machine_single
+    results = {}
+    for symbol in symbols:
+        try:
+            pred, meta = predict_quantum_machine_single(symbol, days, backend)
+            results[symbol] = {"prediction": pred.tolist(), "meta": meta}
+        except Exception as e:
+            results[symbol] = {"error": str(e)}
+    return results
+
 def get_quantum_service():
     """Get IBM Quantum service with new authentication"""
     try:
