@@ -6,9 +6,15 @@ import { motion } from "framer-motion";
 let API_URL;
 if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
   API_URL = "http://localhost:8080";
+} else if (window.location.hostname === "3dc94c6e-us-south.lb.appdomain.cloud") {
+  // For IBM Cloud deployment, backend should be on same domain without port
+  API_URL = "https://3dc94c6e-us-south.lb.appdomain.cloud";
 } else {
   API_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8080";
 }
+
+console.log("Frontend running on:", window.location.hostname);
+console.log("Backend API URL set to:", API_URL);
 
 const symbolsList = ["AAPL", "GOOG", "MSFT", "TSLA", "AMZN", "META", "NVDA", "NFLX", "IBM", "INTC"];
 
@@ -54,6 +60,8 @@ const Dashboard = () => {
     data.append('username', login.username);
     data.append('password', login.password);
 
+    console.log('Attempting login to:', `${API_URL}/token`);
+
     try {
       const response = await fetch(`${API_URL}/token`, {
         method: 'POST',
@@ -63,8 +71,14 @@ const Dashboard = () => {
         body: data,
       });
       
+      console.log('Login response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error(`Login failed: ${response.status} ${response.statusText}`);
+        if (response.status === 0) {
+          throw new Error('Cannot connect to backend server. Please check if the backend is running.');
+        }
+        const errorText = await response.text();
+        throw new Error(`Login failed: HTTP ${response.status} - ${errorText}`);
       }
       
       const result = await response.json();
@@ -79,7 +93,22 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      alert(`Login failed: ${error.message}`);
+      
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        alert(`Connection Error: Cannot reach the backend server at ${API_URL}
+        
+Possible solutions:
+1. Check if the backend server is running locally:
+   - Run: start_backend.bat or python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+
+2. For IBM Cloud deployment, verify the service is running:
+   - Check kubectl get pods
+   - Check kubectl get services
+
+3. Verify the correct API URL is being used`);
+      } else {
+        alert(`Login failed: ${error.message}`);
+      }
     }
   };
 

@@ -1,8 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080"; // Dynamic for env
 
 function App() {
+  // Add state for backend connectivity
+  const [backendStatus, setBackendStatus] = useState("checking");
+  const [backendError, setBackendError] = useState(null);
   // State for each API input/output
   const [loginData, setLoginData] = useState({ username: "", password: "" });
   const [token, setToken] = useState("");
@@ -25,6 +28,33 @@ function App() {
   const [quantumSymbols, setQuantumSymbols] = useState(["AAPL"]);
   const [quantumDays, setQuantumDays] = useState(5);
   const [quantumBackend, setQuantumBackend] = useState("ibm_brisbane");
+
+  // Check backend connectivity on load
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const response = await fetch(`${API_URL}/health`, {
+          method: 'GET',
+          timeout: 5000 // 5 second timeout
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setBackendStatus("connected");
+          console.log("Backend health check:", data);
+        } else {
+          setBackendStatus("error");
+          setBackendError(`HTTP ${response.status}: ${response.statusText}`);
+        }
+      } catch (error) {
+        setBackendStatus("error");
+        setBackendError(error.message);
+        console.error("Backend connection failed:", error);
+      }
+    };
+
+    checkBackend();
+  }, []);
 
   const getAuthHeader = () =>
     token && token.access_token
@@ -111,6 +141,35 @@ function App() {
   return (
     <div style={{ padding: 20 }}>
       <h1>Quantum1 API Dashboard</h1>
+      
+      {/* Backend Status Indicator */}
+      <div style={{ 
+        padding: 10, 
+        marginBottom: 20, 
+        backgroundColor: backendStatus === "connected" ? "#d4edda" : 
+                        backendStatus === "error" ? "#f8d7da" : "#fff3cd",
+        border: `1px solid ${backendStatus === "connected" ? "#c3e6cb" : 
+                             backendStatus === "error" ? "#f5c6cb" : "#ffeaa7"}`,
+        borderRadius: 4
+      }}>
+        <strong>Backend Status: </strong>
+        {backendStatus === "checking" && "🔄 Checking connection..."}
+        {backendStatus === "connected" && "✅ Connected"}
+        {backendStatus === "error" && `❌ Connection Failed: ${backendError}`}
+        <br />
+        <small>API URL: {API_URL}</small>
+        {backendStatus === "error" && (
+          <div style={{ marginTop: 10 }}>
+            <strong>Troubleshooting Tips:</strong>
+            <ul>
+              <li>Check if the backend server is running</li>
+              <li>Verify the API_URL is correct</li>
+              <li>Run the fix_ibmcloud.bat script for IBM Cloud issues</li>
+              <li>For local development: python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload</li>
+            </ul>
+          </div>
+        )}
+      </div>
 
       {/* POST /token */}
       <section>

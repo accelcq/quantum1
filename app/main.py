@@ -289,6 +289,84 @@ def check_ibm_keys():
 # Use the robust fetch_and_cache_stock_data_json function from shared.py
 # (imported at the top of this file)
 
+def fetch_stock_data_custom(symbol: str, start_date: str, data_period: str, data_source: str = "Yahoo Finance") -> pd.DataFrame:
+    """
+    Fetch stock data with custom start date and duration
+    
+    Args:
+        symbol: Stock symbol (e.g., "AAPL")
+        start_date: Start date in format "YYYY-MM-DD"
+        data_period: Period like "Short-term (1-7 da)", "Medium-term (8-30 da)", "Long-term (31+ da)"
+        data_source: Data source ("Yahoo Finance" or "Financial Modeling Prep")
+    
+    Returns:
+        DataFrame with stock data
+    """
+    log_step("DataFetch", f"Fetching custom data for {symbol} from {start_date} for {data_period}")
+    
+    # Validate inputs
+    if data_source not in ["Financial Modeling Prep", "Yahoo Finance"]:
+        raise HTTPException(status_code=400, detail=f"Unsupported data source: {data_source}")
+    
+    # Parse data period to get number of days
+    if "1-7" in data_period:
+        days = 7
+    elif "8-30" in data_period:
+        days = 30
+    elif "31+" in data_period:
+        days = 90  # Use 90 days for long-term
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported data period: {data_period}")
+    
+    # Validate date format and calculate end date
+    try:
+        from datetime import datetime, timedelta
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+        end_dt = start_dt + timedelta(days=days)
+        end_date = end_dt.strftime("%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {start_date}. Use YYYY-MM-DD format.")
+    
+    if data_source == "Financial Modeling Prep":
+        # Use FMP API with date range
+        if not FMP_API_KEY or FMP_API_KEY == "YOUR_API_KEY":
+            log_step("DataFetch", "FMP_API_KEY is not set or is invalid.")
+            raise HTTPException(status_code=500, detail="FMP_API_KEY is not set or is invalid.")
+        
+        url = f"https://financialmodelingprep.com/api/v3/historical-price-full/{symbol}?from={start_date}&to={end_date}&apikey={FMP_API_KEY}"
+        
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code != 200:
+                log_step("DataFetch", f"Failed to fetch data for {symbol}, status code: {r.status_code}")
+                raise HTTPException(status_code=500, detail=f"Failed to fetch data for {symbol} from FMP API. Status: {r.status_code}")
+            
+            data = r.json()
+            if 'historical' not in data or not data['historical']:
+                log_step("DataFetch", f"No historical data found for {symbol}")
+                raise HTTPException(status_code=404, detail=f"No historical data found for {symbol} in the specified date range")
+            
+            df = pd.json_normalize(data, 'historical', ['symbol'])
+            df = df.sort_values('date').reset_index(drop=True)
+            log_step("DataFetch", f"Custom DataFrame created for {symbol}, shape: {df.shape}")
+            return df
+            
+        except requests.RequestException as e:
+            log_step("DataFetch", f"Network error fetching FMP data: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Network error fetching data: {str(e)}")
+        except Exception as e:
+            log_step("DataFetch", f"Error fetching FMP data: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
+    
+    else:
+        # For Yahoo Finance, warn about limited functionality
+        log_step("DataFetch", f"Using Yahoo Finance fallback for {symbol} - custom date range may not be applied")
+        try:
+            return fetch_and_cache_stock_data_json(symbol)
+        except Exception as e:
+            log_step("DataFetch", f"Error with Yahoo Finance fallback: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Error fetching data from Yahoo Finance fallback: {str(e)}")
+
 # --- Model Save/Load ---
 MODEL_PATH: str = "quantum1_model.pkl"
 DATA_PATH: str = "quantum1_train_data.json"
