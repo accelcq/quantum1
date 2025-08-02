@@ -19,7 +19,8 @@ import pandas as pd
 from qiskit import QuantumCircuit, QuantumRegister # type: ignore
 from qiskit_ibm_runtime import QiskitRuntimeService # type: ignore
 from qiskit.circuit.library import PauliFeatureMap # type: ignore
-from qiskit_machine_learning.optimizers import ADAM # type: ignore
+from qiskit_algorithms.optimizers import ADAM  # Updated import path
+# from qiskit_machine_learning.optimizers import ADAM # type: ignore  # Old import - deprecated
 from qiskit_aer import Aer  # type: ignore
 from qiskit.circuit import Parameter # type: ignore
 from qiskit_machine_learning.algorithms import VQR # type: ignore

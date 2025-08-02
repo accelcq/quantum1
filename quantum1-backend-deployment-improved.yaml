@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quantum1-backend
+  namespace: ${NAMESPACE}
+  labels:
+    app: quantum1-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quantum1-backend
+  template:
+    metadata:
+      labels:
+        app: quantum1-backend
+    spec:
+      containers:
+      - name: quantum1-backend
+        image: us.icr.io/${NAMESPACE}/quantum1-backend:${IMAGE_TAG}
+        ports:
+        - containerPort: 8080
+        env:
+        - name: FMP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: FMP_API_KEY
+        - name: IBM_CLOUD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBM_CLOUD_API_KEY
+        - name: IBMQ_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBMQ_API_TOKEN
+        - name: IBM_CLOUD_REGION
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBM_CLOUD_REGION
+        - name: IBM_CLOUD_NAMESPACE
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBM_CLOUD_NAMESPACE
+        - name: K8S_CLUSTER_NAME
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: K8S_CLUSTER_NAME
+        - name: IBM_CLOUD_RESOURCE_GROUP
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBM_CLOUD_RESOURCE_GROUP
+        - name: IBM_CLOUD_ENV
+          valueFrom:
+            secretKeyRef:
+              name: quantum1-secrets
+              key: IBM_CLOUD_ENV
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        # Add health checks to ensure backend is ready
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        # Add startup probe for slow-starting backend
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 10

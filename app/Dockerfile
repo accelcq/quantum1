@@ -1,14 +1,14 @@
 #Dockerfile-backend for FastAPI application(backend)
 
+# Use Python 3.11 slim image
 FROM python:3.11-slim
 
 # Set working directory to root so 'app' becomes a proper Python module
 WORKDIR /
 
-# Copy requirements.txt first for better Docker layer caching
-COPY requirements.txt /app/requirements.txt
-
-# Install Python dependencies
+# Copy requirements and install dependencies
+#COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy all backend source code into the container's /app directory

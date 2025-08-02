@@ -155,7 +155,11 @@ jobs:
         
         # Wait for deployment to be ready
         echo "⏳ Waiting for backend deployment to be ready..."
-        kubectl rollout status deployment/quantum1-backend -n $NAMESPACE --timeout=300s
+        kubectl rollout status deployment/quantum1-backend -n $NAMESPACE --timeout=600s
+        
+        # Additional wait for backend to fully start
+        echo "⏳ Waiting additional 60 seconds for backend to fully initialize..."
+        sleep 60
         
         # Verify secrets are loaded in the pod
         echo "🔍 Verifying secrets are available in backend pod..."
@@ -246,10 +250,24 @@ jobs:
         echo "🌐 Backend: http://$BACKEND_IP:8080/docs"
 
         echo "🔎 Health checking backend..."
-        curl -sSf http://$BACKEND_IP:8080/health || echo "❌ Backend health check failed"
+        # Try multiple health endpoints with better error handling
+        echo "Trying /health endpoint..."
+        curl -v --connect-timeout 10 --max-time 30 http://$BACKEND_IP:8080/health || echo "❌ /health endpoint failed"
+        
+        echo "Trying root endpoint..."
+        curl -v --connect-timeout 10 --max-time 30 http://$BACKEND_IP:8080/ || echo "❌ Root endpoint failed"
+        
+        echo "Checking if backend pod is running..."
+        kubectl get pods -n $NAMESPACE -l app=quantum1-backend
+        
+        echo "Checking backend pod logs..."
+        kubectl logs -l app=quantum1-backend -n $NAMESPACE --tail=20 || echo "❌ Could not get backend logs"
+        
+        echo "Checking backend service details..."
+        kubectl describe svc quantum1-backend-service -n $NAMESPACE
 
         echo "🔎 Health checking frontend..."
-        curl -sSf http://$FRONTEND_IP || echo "❌ Frontend health check failed"
+        curl -sSf --connect-timeout 10 --max-time 30 http://$FRONTEND_IP || echo "❌ Frontend health check failed"
 
     - name: Deployment Summary
       run: |
