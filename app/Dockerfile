@@ -1,9 +1,6 @@
-#Dockerfile-backend for FastAPI application(backend)
-
-# Use Python 3.11 slim image
+# Dockerfile for FastAPI backend
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
 # Install system dependencies
@@ -13,23 +10,23 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
-COPY requirements.txt /app/requirements.txt
+# Copy and install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . /app/
+COPY . .
 
-# Create necessary directories
-RUN mkdir -p /app/data/predictions /app/logs
+# Create directories
+RUN mkdir -p data/predictions logs
 
 # Expose port
 EXPOSE 8080
 
-# Set environment variables
+# Set environment
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-# Run the application (using the working CMD)
+# Run application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
