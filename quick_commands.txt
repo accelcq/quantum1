@@ -1,0 +1,28 @@
+# Quick Commands for VS Code Terminal (Windows)
+# Copy and paste these commands one by one in VS Code terminal
+
+# 1. DELETE THE FAILING POD
+kubectl delete pod -l app=quantum1-backend -n quantum1space
+
+# 2. CHECK CURRENT IMAGE
+kubectl get deployment quantum1-backend -n quantum1space -o jsonpath="{.spec.template.spec.containers[0].image}"
+
+# 3. COMMIT AND PUSH CHANGES
+git add .
+git commit -m "Force new deployment: fixed qiskit-algorithms version"
+git push origin main
+
+# 4. MONITOR POD STATUS (run this in separate terminal)
+kubectl get pods -n quantum1space -l app=quantum1-backend -w
+
+# 5. CHECK DEPLOYMENT EVENTS
+kubectl describe pod -l app=quantum1-backend -n quantum1space
+
+# 6. TEST HEALTH ENDPOINT (after pod is running)
+curl http://f3ea7191-us-south.lb.appdomain.cloud:8080/health
+
+# 7. CHECK LOGS IF NEEDED
+kubectl logs -l app=quantum1-backend -n quantum1space --tail=50
+
+# 8. CHECK NEW IMAGE AFTER DEPLOYMENT
+kubectl get deployment quantum1-backend -n quantum1space -o jsonpath="{.spec.template.spec.containers[0].image}"
