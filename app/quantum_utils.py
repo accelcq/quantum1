@@ -18,7 +18,7 @@ except ImportError:
     Estimator = None
 
 try:
-    from qiskit_machine_learning.algorithms import VQR
+    from qiskit_algorithms.algorithms import VQR
 except ImportError:
     VQR = None
 
@@ -92,8 +92,8 @@ import pandas as pd
 from qiskit import QuantumCircuit
 from qiskit_aer import Aer
 from qiskit.circuit.library import PauliFeatureMap
-from qiskit_machine_learning.algorithms import VQR
-from qiskit_machine_learning.optimizers import ADAM
+from qiskit_algorithms.algorithms import VQR
+from qiskit_algorithms.optimizers import ADAM
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
 import logging
